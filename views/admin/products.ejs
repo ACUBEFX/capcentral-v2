@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Products & Stock | CapCentral Admin</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:24px;font-family:Arial,sans-serif;background:#f4f6f9;color:#202938}.container{max-width:1300px;margin:auto}.topbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:24px}h1{margin:0 0 8px}.muted{color:#687386}.panel{background:#fff;padding:22px;border-radius:12px;margin-bottom:18px;box-shadow:0 2px 8px #0000000a}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.field{margin-bottom:14px}label{display:block;font-weight:600;margin-bottom:7px}input,select,textarea{width:100%;padding:10px;border:1px solid #d5dae2;border-radius:7px;font:inherit;background:white}textarea{min-height:80px;resize:vertical}button,.button{display:inline-block;border:0;border-radius:7px;padding:10px 14px;background:#183b70;color:white;text-decoration:none;font-weight:600;cursor:pointer}.secondary{background:#687386}.danger{background:#a82b38}.notice{padding:12px;border-radius:7px;margin-bottom:16px;background:#e5f7eb;color:#176337}.error{background:#fde8e8;color:#942b2b}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:700px}th,td{text-align:left;padding:12px 10px;border-bottom:1px solid #e9edf2;vertical-align:middle}th{background:#f8fafc}.status{display:inline-block;padding:5px 9px;border-radius:20px;background:#e5f7eb;color:#176337;font-size:12px}.inactive{background:#fde8e8;color:#942b2b}.category-details{padding:0;overflow:hidden}.category-details summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:12px;align-items:center;padding:20px 22px;font-size:20px;font-weight:700}.category-details summary::-webkit-details-marker{display:none}.category-details summary:after{content:'+';font-size:24px;color:#183b70}.category-details[open] summary:after{content:'−'}.category-details .category-content{padding:0 22px 22px}.category-count{font-size:13px;color:#687386;font-weight:normal}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions form{margin:0}.empty{text-align:center;padding:24px;color:#687386}.product-code{font-weight:700;white-space:nowrap}dialog{width:min(680px,calc(100% - 28px));max-height:90vh;overflow:auto;border:0;border-radius:14px;padding:0;box-shadow:0 18px 70px #0005}dialog::backdrop{background:#11182799}.modal-head{padding:20px 24px;background:#183b70;color:#fff;display:flex;justify-content:space-between;align-items:center}.modal-head h2{margin:0}.modal-body{padding:24px}.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}.close-btn{background:transparent;padding:4px 8px;font-size:26px}.help{font-size:13px;margin-top:5px;color:#687386}@media(max-width:650px){body{padding:12px}.grid{grid-template-columns:1fr}.panel{padding:15px}.category-details summary{padding:16px}.category-details .category-content{padding:0 12px 16px}.modal-body{padding:16px}}
+</style>
+</head><body><div class="container">
+<div class="topbar"><div><h1>Products & Stock</h1><div class="muted">Signed in as <%= admin.username %></div></div><a class="button secondary" href="/admin">Back to Dashboard</a></div>
+<% if (message) { %><div class="notice"><%= message %></div><% } %><% if (error) { %><div class="notice error"><%= error %></div><% } %>
+<section class="panel"><h2>Add a Product</h2><p class="muted">Shoes, hats and thobes can have multiple units. Each cap is a one-of-a-kind item, so caps are tracked as Available or Sold rather than by quantity.</p>
+<form action="/admin/products" method="POST"><div class="grid">
+<div class="field"><label for="new_product_code">Product code *</label><input id="new_product_code" name="product_code" maxlength="100" placeholder="e.g. CAP-001" required></div>
+<div class="field"><label for="new_name">Product name *</label><input id="new_name" name="name" maxlength="255" required></div>
+<div class="field"><label for="new_category">Category *</label><select id="new_category" name="category" required><option value="">Select category</option><option>Caps</option><option>Shoes</option><option>Hats</option><option value="Thobes">Throbe</option></select></div>
+<div class="field" id="newCapTypeField" hidden><label for="new_cap_type">Cap type *</label><select id="new_cap_type" name="cap_type"><option value="">Select cap type</option><option>Zanna Bukar</option><option>Bongol</option><option>Atiku</option><option>Tinubu/Fila</option><option>Miyaram</option><option>Kindea</option><option>Tangaran</option><option>Tonak</option></select><div class="help">Choose the style so it appears under the right Caps dropdown item.</div></div>
+<div class="field"><label for="new_price">Price (₦) *</label><input id="new_price" name="price" type="number" min="0" step="0.01" required></div>
+<div class="field" id="newStockField"><label for="new_stock">Opening stock</label><input id="new_stock" name="stock_quantity" type="number" min="0" step="1" value="10" required></div>
+<div class="field"><label for="new_image">Image URL or local path</label><input id="new_image" name="image_url" maxlength="500" placeholder="/jpg/cap6.jpeg"></div>
+</div><div class="field"><label for="new_description">Description</label><textarea id="new_description" name="description"></textarea></div><button type="submit">Add product</button></form></section>
+<% const categories = [{ value: 'Caps', label: 'Caps' }, { value: 'Shoes', label: 'Shoes' }, { value: 'Hats', label: 'Hats' }, { value: 'Thobes', label: 'Throbe' }]; %>
+<% categories.forEach((category, index) => { const categoryProducts = products.filter(product => product.category === category.value || (category.value === 'Hats' && product.category === 'Trucker Hats')); %>
+<details class="panel category-details" <%= index === 0 ? 'open' : '' %>><summary><span><%= category.label %> <span class="category-count">(<%= categoryProducts.length %> products)</span></span></summary><div class="category-content">
+<% if (!categoryProducts.length) { %><p class="empty">No products in this category yet. Use “Add a Product” above to create one.</p><% } else { %><div class="table-wrap"><table><thead><tr><th>Product code</th><th>Product</th><th>Price</th><th>Stock / availability</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+<% categoryProducts.forEach(product => { %><tr><td class="product-code"><%= product.product_code %></td><td><strong><%= product.name %></strong><% if (product.category === 'Caps' && product.cap_type) { %><br><span class="status"><%= product.cap_type %></span><% } %><br><span class="muted"><%= product.description || '' %></span></td><td>₦<%= Number(product.price).toLocaleString('en-NG', {maximumFractionDigits:2}) %></td><td><strong><%= product.category === 'Caps' ? (Number(product.stock_quantity) > 0 ? 'Available' : 'Sold') : product.stock_quantity %></strong></td><td><% if (product.is_active) { %><span class="status">Active</span><% } else { %><span class="status inactive">Inactive</span><% } %></td><td><div class="actions"><button type="button" class="edit-button" data-id="<%= product.id %>" data-code="<%= product.product_code %>" data-name="<%= product.name %>" data-category="<%= product.category === 'Trucker Hats' ? 'Hats' : product.category %>" data-cap-type="<%= product.cap_type || '' %>" data-price="<%= product.price %>" data-stock="<%= product.stock_quantity %>" data-image="<%= product.image_url || '' %>" data-description="<%= product.description || '' %>">Edit</button><form action="/admin/products/<%= product.id %>/toggle" method="POST"><button type="submit" class="<%= product.is_active ? 'danger' : '' %>"><%= product.is_active ? 'Deactivate' : 'Activate' %></button></form></div></td></tr><% }); %>
+</tbody></table></div><% } %></div></details><% }); %>
+</div>
+<dialog id="editModal"><div class="modal-head"><h2>Edit product</h2><button type="button" class="close-btn" id="closeModal" aria-label="Close">×</button></div><div class="modal-body"><form id="editForm" method="POST"><div class="grid">
+<div class="field"><label for="edit_product_code">Product code *</label><input id="edit_product_code" name="product_code" maxlength="100" required><div class="help">Must be unique. This code identifies the product in inventory.</div></div>
+<div class="field"><label for="edit_name">Product name *</label><input id="edit_name" name="name" maxlength="255" required></div>
+<div class="field"><label for="edit_category">Category *</label><select id="edit_category" name="category" required><option>Caps</option><option>Shoes</option><option>Hats</option><option value="Thobes">Throbe</option></select></div>
+<div class="field" id="editCapTypeField" hidden><label for="edit_cap_type">Cap type *</label><select id="edit_cap_type" name="cap_type"><option value="">Select cap type</option><option>Zanna Bukar</option><option>Bongol</option><option>Atiku</option><option>Tinubu/Fila</option><option>Miyaram</option><option>Kindea</option><option>Tangaran</option><option>Tonak</option></select></div>
+<div class="field"><label for="edit_price">Price (₦) *</label><input id="edit_price" name="price" type="number" min="0" step="0.01" required></div>
+<div class="field" id="editStockField"><label for="edit_stock">Stock quantity *</label><input id="edit_stock" name="stock_quantity" type="number" min="0" step="1" required></div>
+<div class="field"><label for="edit_image">Image URL or local path</label><input id="edit_image" name="image_url" maxlength="500"></div>
+</div><div class="field"><label for="edit_description">Description</label><textarea id="edit_description" name="description"></textarea></div><div class="modal-actions"><button type="button" class="secondary" id="cancelModal">Cancel</button><button type="submit">Save changes</button></div></form></div></dialog>
+<script>
+(() => {
+ const modal = document.getElementById('editModal');
+ const form = document.getElementById('editForm');
+ const fields = {product_code:'edit_product_code', name:'edit_name', category:'edit_category', price:'edit_price', stock:'edit_stock', image:'edit_image', description:'edit_description'};
+ const newCategory = document.getElementById('new_category');
+ const newStockField = document.getElementById('newStockField');
+ const newStock = document.getElementById('new_stock');
+ const newCapTypeField = document.getElementById('newCapTypeField');
+ const newCapType = document.getElementById('new_cap_type');
+ const editCapTypeField = document.getElementById('editCapTypeField');
+ const editCapType = document.getElementById('edit_cap_type');
+ const editCategory = document.getElementById('edit_category');
+ const editStockField = document.getElementById('editStockField');
+ const editStock = document.getElementById('edit_stock');
+ const updateNewStockVisibility = () => { const isCap = newCategory.value === 'Caps'; newStockField.hidden = isCap; newStock.required = !isCap; newCapTypeField.hidden = !isCap; newCapType.required = isCap; if (isCap) newStock.value = '1'; else if (!newStock.value || newStock.value === '1') newStock.value = '10'; };
+ const updateEditStockVisibility = () => { const isCap = editCategory.value === 'Caps'; editStockField.hidden = isCap; editStock.required = isCap ? false : true; editCapTypeField.hidden = !isCap; editCapType.required = isCap; };
+ newCategory.addEventListener('change', updateNewStockVisibility);
+ editCategory.addEventListener('change', updateEditStockVisibility);
+ updateNewStockVisibility();
+ document.querySelectorAll('.edit-button').forEach(button => button.addEventListener('click', () => {
+   form.action = '/admin/products/' + encodeURIComponent(button.dataset.id) + '/edit';
+   document.getElementById(fields.product_code).value = button.dataset.code || '';
+   document.getElementById(fields.name).value = button.dataset.name || '';
+   document.getElementById(fields.category).value = button.dataset.category === 'Trucker Hats' ? 'Hats' : (button.dataset.category || 'Caps');
+   editCapType.value = button.dataset.capType || '';
+   document.getElementById(fields.price).value = button.dataset.price || '0';
+   document.getElementById(fields.stock).value = button.dataset.stock || '0';
+   updateEditStockVisibility();
+   document.getElementById(fields.image).value = button.dataset.image || '';
+   document.getElementById(fields.description).value = button.dataset.description || '';
+   modal.showModal();
+ }));
+ const close = () => modal.close();
+ document.getElementById('closeModal').addEventListener('click', close);
+ document.getElementById('cancelModal').addEventListener('click', close);
+ modal.addEventListener('click', event => { if (event.target === modal) close(); });
+})();
+</script></body></html>

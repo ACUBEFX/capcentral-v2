@@ -64,6 +64,7 @@
     <div class="dropdown-sidebar">
         <button class="dropdown-btn">Caps <i class="fas fa-chevron-down"></i></button>
         <div class="dropdown-content-sidebar">
+            <a href="/caps">All Caps</a>
             <a href="/products">Zanna Bukar</a>
             <a href="/bongol">Bongol</a>
             <a href="/atiku">Atiku</a>
@@ -548,5 +549,17 @@
 
     <script src="script.js">
     </script>
+
+<script src="/caps-catalog.js" data-cap-type="Kindea"></script>
+<style>
+.product-stock { margin: 6px 0 10px; font-size: .9rem; font-weight: 600; color: #287a35; }
+.product-stock.out-of-stock { color: #b42318; }
+.product-card.product-sold { opacity: .58; filter: grayscale(.65); }
+.product-image-container { position: relative; }
+.sold-overlay-badge { position: absolute; top: 12px; left: 12px; z-index: 3; background: #b42318; color: #fff; font-weight: 800; letter-spacing: .08em; padding: 7px 12px; border-radius: 4px; }
+.add-to-cart-button:disabled { opacity: .6; cursor: not-allowed; }
+.product-image-placeholder { display:flex; align-items:center; justify-content:center; min-height:180px; background:#f1f3f5; color:#687386; font-weight:700; }
+.empty-products { grid-column:1/-1; padding:32px; text-align:center; color:#687386; }
+</style>
 </body>
 </html>

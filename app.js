@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 
+
 const session = require('express-session');
 const path = require('path');
 require('dotenv').config();
@@ -17,6 +18,8 @@ const dashboardRoutes = require('./routes/dashboardroutes');
 const profileRoutes = require('./routes/profileroutes');
 const checkoutRoutes = require('./routes/checkoutroutes');
 const servingPages = require('./routes/serveroutes');
+const adminRoutes = require('./routes/adminroutes');
+const categoryRoutes = require('./routes/categoryRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,12 +29,18 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 // Middleware
+
 app.use(flash());
 app.use(session({
-  secret: process.env.SESSION_SECRET, 
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 1000 * 60 * 60 * 24 } // 1 day
+  cookie: {
+    maxAge: 1000 * 60 * 60 * 24, // 1 day
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: false
+  }
 }));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -50,6 +59,8 @@ app.use('/', dashboardRoutes);
 app.use('/', profileRoutes);
 app.use('/', servingPages);
 app.use('/', checkoutRoutes);
+app.use('/', adminRoutes);
+app.use('/api/categories', categoryRoutes);
 console.log(Date.now());
 
 
@@ -74,6 +85,6 @@ app.use((err, req, res, next) => {
 });
 
 // Server start
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });

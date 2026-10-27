@@ -1,0 +1,342 @@
+warning: in the working copy of 'controllers/checkoutController.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'public/Atiku.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'public/Shoe.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'public/bongol.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'public/index1.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'public/kindea.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'public/miyaram.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'public/script.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'public/tangaran.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'public/throbe.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'public/tinubu.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'public/tonak.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'public/trucker.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'routes/checkoutroutes.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'routes/serveroutes.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'services/paystackService.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'views/profile.ejs', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/app.js b/app.js[m
+[1mindex b0a52cc..351b203 100644[m
+[1m--- a/app.js[m
+[1m+++ b/app.js[m
+[36m@@ -2,6 +2,7 @@[m [mconst express = require('express');[m
+ const cors = require('cors');[m
+ const bodyParser = require('body-parser');[m
+ [m
+[32m+[m
+ const session = require('express-session');[m
+ const path = require('path');[m
+ require('dotenv').config();[m
+[36m@@ -17,6 +18,8 @@[m [mconst dashboardRoutes = require('./routes/dashboardroutes');[m
+ const profileRoutes = require('./routes/profileroutes');[m
+ const checkoutRoutes = require('./routes/checkoutroutes');[m
+ const servingPages = require('./routes/serveroutes');[m
+[32m+[m[32mconst adminRoutes = require('./routes/adminroutes');[m
+[32m+[m[32mconst categoryRoutes = require('./routes/categoryRoutes');[m
+ [m
+ const app = express();[m
+ const PORT = process.env.PORT || 3000;[m
+[36m@@ -26,12 +29,18 @@[m [mapp.set('view engine', 'ejs');[m
+ app.set('views', path.join(__dirname, 'views'));[m
+ [m
+ // Middleware[m
+[32m+[m
+ app.use(flash());[m
+ app.use(session({[m
+[31m-  secret: process.env.SESSION_SECRET, [m
+[32m+[m[32m  secret: process.env.SESSION_SECRET,[m
+   resave: false,[m
+   saveUninitialized: false,[m
+[31m-  cookie: { maxAge: 1000 * 60 * 60 * 24 } // 1 day[m
+[32m+[m[32m  cookie: {[m
+[32m+[m[32m    maxAge: 1000 * 60 * 60 * 24, // 1 day[m
+[32m+[m[32m    httpOnly: true,[m
+[32m+[m[32m    sameSite: 'lax',[m
+[32m+[m[32m    secure: false[m
+[32m+[m[32m  }[m
+ }));[m
+ app.use(bodyParser.urlencoded({ extended: true }));[m
+ app.use(express.static(path.join(__dirname, 'public')));[m
+[36m@@ -50,6 +59,8 @@[m [mapp.use('/', dashboardRoutes);[m
+ app.use('/', profileRoutes);[m
+ app.use('/', servingPages);[m
+ app.use('/', checkoutRoutes);[m
+[32m+[m[32mapp.use('/', adminRoutes);[m
+[32m+[m[32mapp.use('/api/categories', categoryRoutes);[m
+ console.log(Date.now());[m
+ [m
+ [m
+[36m@@ -74,6 +85,6 @@[m [mapp.use((err, req, res, next) => {[m
+ });[m
+ [m
+ // Server start[m
+[31m-app.listen(PORT, () => {[m
+[32m+[m[32mapp.listen(PORT, '0.0.0.0', () => {[m
+   console.log(`Server running at http://localhost:${PORT}`);[m
+ });[m
+[1mdiff --git a/controllers/authController.js b/controllers/authController.js[m
+[1mindex e04e304..389b676 100644[m
+[1m--- a/controllers/authController.js[m
+[1m+++ b/controllers/authController.js[m
+[36m@@ -20,7 +20,10 @@[m [mconst signup = async (req, res) => {[m
+ [m
+             const insertSql = 'INSERT INTO signup (username, email, password) VALUES (?, ?, ?)';[m
+             db.query(insertSql, [username, email, hashedPassword], async (err, result) => {[m
+[31m-                if (err) return res.status(500).send('Error saving user.');[m
+[32m+[m[32m              if (err) {[m
+[32m+[m[32m                  console.error('ERROR SAVING USER:', err);[m
+[32m+[m[32m                  return res.status(500).send('Error saving user.');[m
+[32m+[m[32m              }[m
+                 [m
+                 await sendVerificationEmail(email);[m
+                 res.render('success');[m
+[1mdiff --git a/controllers/checkoutController.js b/controllers/checkoutController.js[m
+[1mindex 88693b5..f16708f 100644[m
+[1m--- a/controllers/checkoutController.js[m
+[1m+++ b/controllers/checkoutController.js[m
+[36m@@ -1,40 +1,1214 @@[m
+[32m+[m
+[32m+[m[32mconst crypto = require('crypto');[m
+ const paystackService = require('../services/paystackService');[m
+[32m+[m[32mconst db = require('../models/database');[m
+[32m+[m
+[32m+[m[32mconst {[m
+[32m+[m[32m    sendProductPaymentConfirmationEmail[m
+[32m+[m[32m} = require('../utils/mailer');[m
+[32m+[m
+[32m+[m[32m// =====================================================[m
+[32m+[m[32m// RESERVATION HELPERS[m
+[32m+[m[32m// =====================================================[m
+[32m+[m
+[32m+[m[32mfunction createReservationToken() {[m
+[32m+[m[32m    return crypto.randomUUID();[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32masync function reserveInventory(reservationToken, cart) {[m
+[32m+[m[32m    if (!reservationToken || !Array.isArray(cart) || !cart.length) {[m
+[32m+[m[32m        throw new Error('Invalid inventory reservation request.');[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    const connection = await db.promise().getConnection();[m
+[32m+[m
+[32m+[m[32m    try {[m
+[32m+[m[32m        await connection.beginTransaction();[m
+[32m+[m
+[32m+[m[32m        const quantities = new Map();[m
+[32m+[m
+[32m+[m[32m        for (const item of cart) {[m
+[32m+[m[32m            const productId = Number([m
+[32m+[m[32m                item.productId ?? item.product_id ?? item.id[m
+[32m+[m[32m            );[m
+[32m+[m
+[32m+[m[32m            const quantity = Number(item.quantity ?? 1);[m
+[32m+[m
+[32m+[m[32m            if ([m
+[32m+[m[32m                !Number.isSafeInteger(productId) ||[m
+[32m+[m[32m                productId <= 0 ||[m
+[32m+[m[32m                !Number.isSafeInteger(quantity) ||[m
+[32m+[m[32m                quantity <= 0[m
+[32m+[m[32m            ) {[m
+[32m+[m[32m                throw new Error([m
+[32m+[m[32m                    'Every cart item must have a valid product ID and quantity.'[m
+[32m+[m[32m                );[m
+[32m+[m[32m            }[m
+[32m+[m
+[32m+[m[32m            quantities.set([m
+[32m+[m[32m                productId,[m
+[32m+[m[32m                (quantities.get(productId) || 0) + quantity[m
+[32m+[m[32m            );[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        const productIds = [...quantities.keys()].sort((a, b) => a - b);[m
+[32m+[m
+[32m+[m[32m        for (const productId of productIds) {[m
+[32m+[m[32m            const quantity = quantities.get(productId);[m
+[32m+[m
+[32m+[m[32m            const [rows] = await connection.execute([m
+[32m+[m[32m                `SELECT id, name, category, stock_quantity, is_active[m
+[32m+[m[32m                 FROM products[m
+[32m+[m[32m                 WHERE id = ?[m
+[32m+[m[32m                 FOR UPDATE`,[m
+[32m+[m[32m                [productId][m
+[32m+[m[32m            );[m
+[32m+[m
+[32m+[m[32m            if (rows.length !== 1 || Number(rows[0].is_active) !== 1) {[m
+[32m+[m[32m                throw new Error(`Product ${productId} is unavailable.`);[m
+[32m+[m[32m            }[m
+[32m+[m
+[32m+[m[32m            const product = rows[0];[m
+[32m+[m
+[32m+[m[32m            if (product.category === 'Caps' && quantity !== 1) {[m
+[32m+[m[32m                throw new Error([m
+[32m+[m[32m                    `Caps are unique items. Quantity must be one for ${product.name}.`[m
+[32m+[m[32m                );[m
+[32m+[m[32m            }[m
+[32m+[m
+[32m+[m[32m            const [updated] = await connection.execute([m
+[32m+[m[32m                `UPDATE products[m
+[32m+[m[32m                 SET stock_quantity = stock_quantity - ?[m
+[32m+[m[32m                 WHERE id = ?[m
+[32m+[m[32m                   AND is_active = 1[m
+[32m+[m[32m                   AND stock_quantity >= ?`,[m
+[32m+[m[32m                [quantity, productId, quantity][m
+[32m+[m[32m            );[m
+[32m+[m
+[32m+[m[32m            if (updated.affectedRows !== 1) {[m
+[32m+[m[32m                throw new Error([m
+[32m+[m[32m                    `Insufficient available stock for ${product.name}.`[m
+[32m+[m[32m                );[m
+[32m+[m[32m            }[m
+[32m+[m
+[32m+[m[32m            await connection.execute([m
+[32m+[m[32m                `INSERT INTO inventory_reservations[m
+[32m+[m[32m                    ([m
+[32m+[m[32m                        reservation_token,[m
+[32m+[m[32m                        product_id,[m
+[32m+[m[32m                        quantity,[m
+[32m+[m[32m                        status,[m
+[32m+[m[32m                        expires_at[m
+[32m+[m[32m                    )[m
+[32m+[m[32m                 VALUES ([m
+[32m+[m[32m                    ?, ?, ?, 'reserved',[m
+[32m+[m[32m                    DATE_ADD(NOW(), INTERVAL 30 MINUTE)[m
+[32m+[m[32m                 )`,[m
+[32m+[m[32m                [reservationToken, productId, quantity][m
+[32m+[m[32m            );[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        await connection.commit();[m
+[32m+[m[32m        return true;[m
+[32m+[m[32m    } catch (error) {[m
+[32m+[m[32m        await connection.rollback();[m
+[32m+[m[32m        throw error;[m
+[32m+[m[32m    } finally {[m
+[32m+[m[32m        connection.release();[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m// Restores stock only when a reservation is successfully released.[m
+[32m+[m[32m// The transaction prevents duplicate releases from restoring stock twice.[m
+[32m+[m[32masync function releaseReservation(reservationToken) {[m
+[32m+[m[32m    if (!reservationToken) return;[m
+[32m+[m
+[32m+[m[32m    const connection = await db.promise().getConnection();[m
+[32m+[m
+[32m+[m[32m    try {[m
+[32m+[m[32m        await connection.beginTransaction();[m
+[32m+[m
+[32m+[m[32m        const [reservations] = await connection.execute([m
+[32m+[m[32m            `SELECT id, product_id, quantity[m
+[32m+[m[32m             FROM inventory_reservations[m
+[32m+[m[32m             WHERE reservation_token = ?[m
+[32m+[m[32m               AND status = 'reserved'[m
+[32m+[m[32m             FOR UPDATE`,[m
+[32m+[m[32m            [reservationToken][m
+[32m+[m[32m        );[m
+[32m+[m
+[32m+[m[32m        for (const reservation of reservations) {[m
+[32m+[m[32m            const [updated] = await connection.execute([m
+[32m+[m[32m                `UPDATE inventory_reservations[m
+[32m+[m[32m                 SET status = 'released'[m
+[32m+[m[32m                 WHERE id = ?[m
+[32m+[m[32m                   AND status = 'reserved'`,[m
+[32m+[m[32m                [reservation.id][m
+[32m+[m[32m            );[m
+[32m+[m
+[32m+[m[32m            if (updated.affectedRows !== 1) {[m
+[32m+[m[32m                throw new Error([m
+[32m+[m[32m                    `Could not release reservation ${reservation.id}.`[m
+[32m+[m[32m                );[m
+[32m+[m[32m            }[m
+[32m+[m
+[32m+[m[32m            const [stockUpdate] = await connection.execute([m
+[32m+[m[32m                `UPDATE products[m
+[32m+[m[32m                SET stock_quantity = stock_quantity + ?[m
+[32m+[m[32m                WHERE id = ?`,[m
+[32m+[m[32m                [reservation.quantity, reservation.product_id][m
+[32m+[m[32m            );[m
+[32m+[m
+[32m+[m[32m            if (stockUpdate.affectedRows !== 1) {[m
+[32m+[m[32m                throw new Error([m
+[32m+[m[32m                    `Could not restore stock for product ${reservation.product_id}.`[m
+[32m+[m[32m                );[m
+[32m+[m[32m            }[m
+[32m+[m[32m        }[m
+[32m+[m
+[32m+[m[32m        await connection.commit();[m
+[32m+[m[32m    } catch (error) {[m
+[32m+[m[32m        await connection.rollback();[m
+[32m+[m[32m        throw error;[m
+[32m+[m[32m    } finally {[m
+[32m+[m[32m        connection.release();[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32masync function linkReservationToPayment(reservationToken, reference) {[m
+[32m+[m[32m    if (!reservationToken || !reference) {[m
+[32m+[m[32m        throw new Error('Reservation token and payment reference are required.');[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    const [result] = await db.promise().execute([m
+[32m+[m[32m        `UPDATE inventory_reservations[m
+[32m+[m[32m         SET paystack_reference = ?[m
+[32m+[m[32m         WHERE reservation_token = ?[m
+[32m+[m[32m           AND status = 'reserved'`,[m
+[32m+[m[32m        [reference, reservationToken][m
+[32m+[m[32m    );[m
+[32m+[m
+[32m+[m[32m    if (result.affectedRows === 0) {[m
+[32m+[m[32m        const [rows] = await db.promise().execute([m
+[32m+[m[32m            `SELECT id[m
+[32m+[m[32m             FROM inventory_reservations[m
+[32m+[m[32m             WHERE reservation_token = ?[m
+[32m+[m[32m               AND paystack_reference = ?`,[m
+[32m+[m[32m            [reservationToken, reference][m
+[32m+[m[32m        );[m
+[32m+[m
+[32m+[m[32m        if (!rows.length) {[m
+[32m+[m[32m            throw new Error('Could not link the inventory reservation to Paystack.');[m
+[32m+[m[32m        }[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32m// =====================================================[m
+[32m+[m[32m// NORMALIZATION HELPERS[m
+[32m+[m[32m// =====================================================[m
+[32m+[m
+[32m+[m[32mfunction parsePaystackMetadata(value) {[m
+[32m+[m[32m    if (!value) return {};[m
+[32m+[m
+[32m+[m[32m    if (typeof value === 'object') return value;[m
+[32m+[m
+[32m+[m[32m    if (typeof value === 'string') {[m
+[32m+[m[32m        try {[m
+[32m+[m[32m            const parsed = JSON.parse(value);[m
+[32m+[m[32m            return parsed && typeof parsed === 'object' ? parsed : {};[m
+[32m+[m[32m        } catch (error) {[m
+[32m+[m[32m            console.error('Error parsing Paystack metadata:', error.message);[m
+[32m+[m[32m        }[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    return {};[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mfunction normalizeCart(value) {[m
+[32m+[m[32m    if (Array.isArray(value)) return value;[m
+[32m+[m
+[32m+[m[32m    if (typeof value === 'string') {[m
+[32m+[m[32m        try {[m
+[32m+[m[32m            const parsed = JSON.parse(value);[m
+[32m+[m[32m            return Array.isArray(parsed) ? parsed : [];[m
+[32m+[m[32m        } catch (error) {[m
+[32m+[m[32m            console.error('Error parsing cart:', error.message);[m
+[32m+[m[32m        }[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    return [];[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mfunction normalizeDeliveryOption(value) {[m
+[32m+[m[32m    const option = Array.isArray(value) ? value[0] : value;[m
+[32m+[m
+[32m+[m[32m    return String(option || 'standard').toLowerC

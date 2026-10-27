@@ -1,0 +1,136 @@
+
+/* Styles exclusively for dynamically generated category pages */
+
+body.dynamic-category-page {
+    margin: 0;
+    min-height: 100vh;
+    background: #f7f7f7;
+}
+
+.dynamic-category-page header {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 100px;
+    padding: 15px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+}
+
+.dynamic-category-page header .logo img {
+    display: block;
+    width: 110px;
+    max-width: 100%;
+    height: auto;
+}
+
+.dynamic-category-page header .header-icons {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.dynamic-category-page nav {
+    width: 100%;
+}
+
+.dynamic-category-page nav .nav-container {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 12px 24px;
+}
+
+.dynamic-category-page nav .nav-links {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.dynamic-category-page nav .nav-links a {
+    display: inline-block;
+    color: inherit;
+    text-decoration: none;
+}
+
+.dynamic-category-page .main {
+    box-sizing: border-box;
+    width: min(1200px, calc(100% - 40px));
+    margin: 36px auto;
+}
+
+.dynamic-category-page .products-header {
+    text-align: center;
+    margin-bottom: 28px;
+}
+
+.dynamic-category-page .products-header h2 {
+    margin-bottom: 8px;
+}
+
+.dynamic-category-page .catalogue-controls {
+    display: grid;
+    grid-template-columns: minmax(200px, 2fr) minmax(150px, 1fr) minmax(150px, 1fr);
+    gap: 16px;
+    margin: 24px 0;
+}
+
+.dynamic-category-page .catalogue-controls label {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.dynamic-category-page .catalogue-controls input,
+.dynamic-category-page .catalogue-controls select {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 42px;
+    padding: 9px 12px;
+    border: 1px solid #d0d5dd;
+    border-radius: 6px;
+    background: white;
+}
+
+.dynamic-category-page .product-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+}
+
+.dynamic-category-page .catalogue-loading,
+.dynamic-category-page .empty-products {
+    grid-column: 1 / -1;
+    padding: 32px 16px;
+    text-align: center;
+}
+
+@media (max-width: 750px) {
+    .dynamic-category-page .main {
+        width: calc(100% - 24px);
+        margin: 24px auto;
+    }
+
+    .dynamic-category-page nav .nav-container {
+        flex-wrap: wrap;
+        padding: 12px;
+    }
+
+    .dynamic-category-page nav .nav-links {
+        gap: 12px;
+    }
+
+    .dynamic-category-page .catalogue-controls {
+        grid-template-columns: 1fr;
+    }
+
+    .dynamic-category-page .product-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+    }
+}

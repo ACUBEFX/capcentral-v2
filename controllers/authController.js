@@ -20,7 +20,10 @@ const signup = async (req, res) => {
 
             const insertSql = 'INSERT INTO signup (username, email, password) VALUES (?, ?, ?)';
             db.query(insertSql, [username, email, hashedPassword], async (err, result) => {
-                if (err) return res.status(500).send('Error saving user.');
+              if (err) {
+                  console.error('ERROR SAVING USER:', err);
+                  return res.status(500).send('Error saving user.');
+              }
                 
                 await sendVerificationEmail(email);
                 res.render('success');

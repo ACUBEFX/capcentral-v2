@@ -1,115 +1,698 @@
+
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Checkout</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Checkout | CapCentral</title>
+
     <style>
-        /* Reset and base */
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: "Segoe UI", Arial, sans-serif;
         }
+
         body {
-            background-color: #f7f8fa;
-            color: #333;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #eef6ff, #f8fbff);
+            color: #222;
+            padding: 30px 15px;
         }
+
         .checkout-container {
-            background: white;
-            max-width: 480px;
+            max-width: 650px;
             width: 100%;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgb(0 0 0 / 0.1);
+            margin: auto;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 15px 45px rgba(0, 0, 0, 0.10);
+        }
+
+        /* HEADER */
+        .header {
+            background: linear-gradient(135deg, #007bff, #0056d6);
+            color: white;
+            text-align: center;
+            padding: 30px 20px;
+        }
+
+        .logo {
+            font-size: 30px;
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+
+        .header p {
+            margin-top: 7px;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        /* CONTENT */
+        .content {
             padding: 30px;
         }
-        h1, h2, h3 {
-            margin-bottom: 20px;
+
+        h2 {
+            color: #222;
+            margin-bottom: 18px;
+            font-size: 21px;
+        }
+
+        /* CART */
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            padding: 16px 0;
+            border-bottom: 1px solid #eeeeee;
+        }
+
+        .item-info {
+            flex: 1;
+        }
+
+        .item-name {
+            font-weight: 700;
+            color: #222;
+            margin-bottom: 5px;
+        }
+
+        .item-details {
+            color: #777;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .item-price {
+            font-weight: 700;
+            color: #007bff;
+            white-space: nowrap;
+        }
+
+        /* DELIVERY */
+        .delivery-section {
+            margin-top: 30px;
+        }
+
+        .delivery-option {
+            display: block;
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .delivery-option input {
+            position: absolute;
+            opacity: 0;
+        }
+
+        .delivery-card {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 17px;
+            border: 2px solid #e3e7ec;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: 0.25s ease;
+        }
+
+        .delivery-card:hover {
+            border-color: #007bff;
+            background: #f8fbff;
+        }
+
+        .delivery-option input:checked + .delivery-card {
+            border-color: #007bff;
+            background: #f0f7ff;
+        }
+
+        .delivery-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: #e8f2ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 21px;
+        }
+
+        .delivery-info {
+            flex: 1;
+        }
+
+        .delivery-title {
+            font-weight: 700;
+            color: #222;
+            margin-bottom: 4px;
+        }
+
+        .delivery-description {
+            color: #777;
+            font-size: 13px;
+        }
+
+        .delivery-price {
+            font-weight: 700;
+            color: #007bff;
+        }
+
+        /* TOTAL */
+        .total-box {
+            margin-top: 20px;
+            padding: 18px;
+            background: #f5f9ff;
+            border-radius: 12px;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .total-row.final {
+            border-top: 1px solid #dce6f2;
+            padding-top: 14px;
+            margin-top: 12px;
+            font-size: 20px;
+            font-weight: 800;
             color: #222;
         }
-        ul {
-            list-style: none;
-            margin-bottom: 25px;
+
+        .total-row.final span:last-child {
+            color: #007bff;
         }
-        ul li {
-            background: #f1f3f5;
-            padding: 12px 15px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-            font-size: 1rem;
-            color: #444;
+
+        /* FORM */
+        .form-section {
+            margin-top: 30px;
         }
-        form {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        input[type="email"] {
-            padding: 12px 15px;
-            font-size: 1rem;
-            border-radius: 6px;
-            border: 1.5px solid #ccc;
-            transition: border-color 0.3s ease;
-        }
-        input[type="email"]:focus {
-            outline: none;
-            border-color: #007bff;
-            box-shadow: 0 0 6px rgba(0,123,255,0.4);
-        }
-        button[type="submit"] {
-            background-color: #007bff;
-            color: white;
-            padding: 15px;
-            font-size: 1.1rem;
+
+        label {
+            display: block;
+            margin-bottom: 8px;
             font-weight: 600;
+            color: #333;
+        }
+
+        input[type="email"],
+        textarea {
+            width: 100%;
+            padding: 14px 15px;
+            border: 1.5px solid #d5d9df;
+            border-radius: 9px;
+            font-size: 15px;
+            outline: none;
+            transition: 0.2s ease;
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        input[type="email"]:focus,
+        textarea:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.10);
+        }
+
+        textarea {
+            min-height: 110px;
+            resize: vertical;
+        }
+
+        .required {
+            color: #d60000;
+        }
+
+        .address-help {
+            margin-top: 6px;
+            color: #888;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        /* BUTTON */
+        .pay-button {
+            width: 100%;
+            margin-top: 25px;
+            padding: 16px;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #007bff, #0056d6);
+            color: white;
+            font-size: 17px;
+            font-weight: 700;
             cursor: pointer;
-            transition: background-color 0.3s ease;
+            transition: 0.25s ease;
         }
-        button[type="submit"]:hover {
-            background-color: #0056b3;
+
+        .pay-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 123, 255, 0.25);
         }
+
+        .secure {
+            text-align: center;
+            margin-top: 15px;
+            color: #888;
+            font-size: 12px;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fb;
+            color: #999;
+            font-size: 12px;
+        }
+
         @media (max-width: 500px) {
-            body {
-                padding: 15px;
+            .content {
+                padding: 22px;
             }
-            .checkout-container {
-                padding: 20px;
+
+            .cart-item {
+                align-items: flex-start;
             }
-            ul li {
-                font-size: 0.9rem;
+
+            .item-price {
+                font-size: 14px;
             }
-            button[type="submit"] {
-                font-size: 1rem;
-                padding: 12px;
+
+            .delivery-card {
+                padding: 14px;
             }
         }
     </style>
 </head>
+
 <body>
-    <div class="checkout-container">
-        <h1>Checkout</h1>
-        <div>
-            <h2>Your Cart</h2>
-            <ul>
-                <% cart.forEach(function(item){ %>
-                    <li>
-                        <%= item.name %> - Size: <%= item.size %> - Qty: <%= item.quantity %> - Price: ₦<%= item.price.toLocaleString() %>
-                    </li>
-                <% }); %>
-            </ul>
-            <h3>Total: ₦<%= Number(total).toLocaleString() %></h3>
+
+<div class="checkout-container">
+
+    <!-- HEADER -->
+    <div class="header">
+        <div class="logo">
+            CapCentral
         </div>
-        <form action="/checkout/pay" method="POST">
-            <input type="hidden" name="total" value="<%= total %>">
-            <input type="email" name="email" required placeholder="Enter your email" />
-            <button type="submit">Pay with Paystack</button>
-        </form>
+
+        <p>
+            Secure Checkout
+        </p>
     </div>
+
+
+    <div class="content">
+
+        <!-- CART -->
+        <h2>
+            Your Order
+        </h2>
+
+        <div>
+
+            <% cart.forEach(function(item) { %>
+
+                <div class="cart-item">
+
+                    <div class="item-info">
+
+                        <div class="item-name">
+                            <%= item.name %>
+                        </div>
+
+                        <div class="item-details">
+                            Size:
+                            <%= item.size || "N/A" %>
+
+                            <br>
+
+                            Quantity:
+                            <%= item.quantity %>
+                        </div>
+
+                    </div>
+
+                    <div class="item-price">
+                        ₦<%= (
+                            Number(item.price) *
+                            Number(item.quantity)
+                        ).toLocaleString() %>
+                    </div>
+
+                </div>
+
+            <% }); %>
+
+        </div>
+
+
+        <!-- DELIVERY -->
+        <div class="delivery-section">
+
+            <h2>
+                Choose Delivery
+            </h2>
+
+
+            <!-- STANDARD -->
+            <label class="delivery-option">
+
+                <input
+                    type="radio"
+                    name="deliveryOption"
+                    value="standard"
+                    data-surcharge="0"
+                    checked
+                    form="checkoutForm"
+                >
+
+                <div class="delivery-card">
+
+                    <div class="delivery-icon">
+                        📦
+                    </div>
+
+                    <div class="delivery-info">
+
+                        <div class="delivery-title">
+                            Standard Delivery
+                        </div>
+
+                        <div class="delivery-description">
+                            Delivered within 2–3 business days
+                        </div>
+
+                    </div>
+
+                    <div class="delivery-price">
+                        Free
+                    </div>
+
+                </div>
+
+            </label>
+
+
+            <!-- EXPRESS -->
+            <label class="delivery-option">
+
+                <input
+                    type="radio"
+                    name="deliveryOption"
+                    value="express"
+                    data-surcharge="2000"
+                    form="checkoutForm"
+                >
+
+                <div class="delivery-card">
+
+                    <div class="delivery-icon">
+                        ⚡
+                    </div>
+
+                    <div class="delivery-info">
+
+                        <div class="delivery-title">
+                            Express Delivery
+                        </div>
+
+                        <div class="delivery-description">
+                            Delivered within 1–2 business days
+                        </div>
+
+                    </div>
+
+                    <div class="delivery-price">
+                        +₦2,000
+                    </div>
+
+                </div>
+
+            </label>
+
+        </div>
+
+
+        <!-- TOTAL -->
+        <div class="total-box">
+
+            <div class="total-row">
+
+                <span>
+                    Subtotal
+                </span>
+
+                <span>
+                    ₦<%= Number(total).toLocaleString() %>
+                </span>
+
+            </div>
+
+
+            <div class="total-row">
+
+                <span>
+                    Delivery
+                </span>
+
+                <span id="deliveryCost">
+                    Free
+                </span>
+
+            </div>
+
+
+            <div class="total-row final">
+
+                <span>
+                    Total
+                </span>
+
+                <span id="finalTotal">
+                    ₦<%= Number(total).toLocaleString() %>
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <!-- PAYMENT FORM -->
+        <form
+            id="checkoutForm"
+            action="/checkout/pay"
+            method="POST"
+        >
+
+            <input
+                type="hidden"
+                name="total"
+                id="totalInput"
+                value="<%= total %>"
+            >
+
+            <input
+                type="hidden"
+                name="cart"
+                value='<%- JSON.stringify(cart) %>'
+            >
+
+            <input
+                type="hidden"
+                name="deliveryOption"
+                id="deliveryOptionInput"
+                value="standard"
+            >
+
+            <input
+                type="hidden"
+                name="expressSurcharge"
+                id="expressSurchargeInput"
+                value="0"
+            >
+
+            <input
+                type="hidden"
+                name="returnUrl"
+                value="<%= returnUrl || '/products' %>"
+            >
+
+
+            <!-- EMAIL -->
+            <div class="form-section">
+
+                <label for="email">
+                    Email Address
+                </label>
+
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    required
+                    placeholder="Enter your email address"
+                >
+
+            </div>
+
+
+            <!-- DELIVERY ADDRESS -->
+            <div class="form-section">
+
+                <label for="deliveryAddress">
+                    Delivery Address
+                    <span class="required">*</span>
+                </label>
+
+                <textarea
+                    id="deliveryAddress"
+                    name="deliveryAddress"
+                    required
+                    placeholder="Enter the full address where you want your order delivered"
+                ></textarea>
+
+                <div class="address-help">
+                    Please include your house/building number,
+                    street, area, city, and any useful landmark.
+                </div>
+
+            </div>
+
+
+            <!-- PAY BUTTON -->
+            <button
+                type="submit"
+                class="pay-button"
+            >
+                🔒 Pay Securely
+            </button>
+
+            <div class="secure">
+                Payments are securely processed by Paystack.
+            </div>
+
+        </form>
+
+    </div>
+
+
+    <div class="footer">
+        © 2026 CapCentral · Thank you for shopping with us.
+    </div>
+
+</div>
+
+
+<script>
+
+    const baseTotal =
+        Number("<%= total %>");
+
+
+    const deliveryOptions =
+        document.querySelectorAll(
+            'input[name="deliveryOption"]'
+        );
+
+
+    const deliveryCost =
+        document.getElementById(
+            "deliveryCost"
+        );
+
+
+    const finalTotal =
+        document.getElementById(
+            "finalTotal"
+        );
+
+
+    const totalInput =
+        document.getElementById(
+            "totalInput"
+        );
+
+
+    const deliveryOptionInput =
+        document.getElementById(
+            "deliveryOptionInput"
+        );
+
+
+    const expressSurchargeInput =
+        document.getElementById(
+            "expressSurchargeInput"
+        );
+
+
+    deliveryOptions.forEach(
+        option => {
+
+            option.addEventListener(
+                "change",
+                function () {
+
+                    const deliveryType =
+                        this.value;
+
+
+                    const surcharge =
+                        Number(
+                            this.dataset.surcharge
+                        ) || 0;
+
+
+                    const newTotal =
+                        baseTotal +
+                        surcharge;
+
+
+                    deliveryOptionInput.value =
+                        deliveryType;
+
+
+                    expressSurchargeInput.value =
+                        surcharge;
+
+
+                    totalInput.value =
+                        newTotal;
+
+
+                    if (surcharge > 0) {
+
+                        deliveryCost.textContent =
+                            "₦" +
+                            surcharge.toLocaleString();
+
+                    } else {
+
+                        deliveryCost.textContent =
+                            "Free";
+
+                    }
+
+
+                    finalTotal.textContent =
+                        "₦" +
+                        newTotal.toLocaleString();
+
+                }
+            );
+
+        }
+    );
+
+</script>
+
 </body>
 </html>
+

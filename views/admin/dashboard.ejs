@@ -1,0 +1,715 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <title>CapCentral | Admin Dashboard</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #172554;
+            --primary-light: #e8edff;
+            --background: #f4f6fb;
+            --white: #ffffff;
+            --text: #1e293b;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --success: #15803d;
+            --shadow: 0 4px 18px rgba(15, 23, 42, 0.05);
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: var(--background);
+            color: var(--text);
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 245px;
+            flex-shrink: 0;
+            background: #111827;
+            color: white;
+            padding: 28px 18px;
+        }
+
+        .brand {
+            font-size: 23px;
+            font-weight: bold;
+            margin: 0 0 8px;
+        }
+
+        .sidebar-subtitle {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-bottom: 32px;
+        }
+
+        .nav-label {
+            color: #9ca3af;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 24px 10px 10px;
+        }
+
+        .sidebar a {
+            display: block;
+            color: #e5e7eb;
+            text-decoration: none;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .sidebar a:hover,
+        .sidebar a.active {
+            background: #263449;
+            color: white;
+        }
+
+        .main {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .topbar {
+            background: var(--white);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .topbar h1 {
+            margin: 0;
+            font-size: 22px;
+        }
+
+        .admin-info {
+            color: var(--muted);
+            font-size: 13px;
+            text-align: right;
+        }
+
+        .admin-info strong {
+            color: var(--text);
+        }
+
+        .content {
+            padding: 30px;
+            max-width: 1500px;
+            margin: 0 auto;
+        }
+
+        .welcome {
+            margin-bottom: 25px;
+        }
+
+        .welcome h2 {
+            margin: 0 0 8px;
+            font-size: 25px;
+        }
+
+        .welcome p {
+            color: var(--muted);
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        .section-title {
+            font-size: 17px;
+            margin: 30px 0 15px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat( auto-fit, minmax(190px, 1fr) );
+            gap: 18px;
+        }
+
+        .stat-card {
+            display: block;
+            color: inherit;
+            text-decoration: none;
+            cursor: pointer;
+            transition: transform 0.15s ease, border-color 0.15s ease;
+            background: var(--white);
+            padding: 23px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        a.stat-card:hover {
+            transform: translateY(-2px);
+            border-color: #94a3b8;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 14px;
+        }
+
+        .stat-number {
+            font-size: clamp(24px, 3vw, 32px);
+            font-weight: bold;
+            overflow-wrap: anywhere;
+        }
+
+        .stat-note {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 10px;
+        }
+
+        .revenue {
+            color: var(--success);
+        }
+
+        .management-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 16px;
+        }
+
+        .management-card {
+            display: block;
+            background: var(--white);
+            padding: 22px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text);
+            text-decoration: none;
+            box-shadow: var(--shadow);
+            transition: transform 0.15s ease, border-color 0.15s ease;
+        }
+
+        .management-card:hover {
+            transform: translateY(-2px);
+            border-color: #94a3b8;
+        }
+
+        .management-icon {
+            font-size: 25px;
+            margin-bottom: 13px;
+        }
+
+        .management-card h3 {
+            margin: 0 0 8px;
+            font-size: 16px;
+        }
+
+        .management-card p {
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        .footer {
+            color: var(--muted);
+            text-align: center;
+            font-size: 12px;
+            padding: 25px;
+        }
+
+        @media (max-width: 760px) {
+            .layout {
+                display: block;
+            }
+
+            .sidebar {
+                width: 100%;
+                padding: 18px;
+            }
+
+            .sidebar-subtitle {
+                margin-bottom: 15px;
+            }
+
+            .nav-label {
+                margin-top: 15px;
+            }
+
+            .sidebar nav {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 4px;
+            }
+
+            .sidebar a {
+                margin: 0;
+            }
+
+            .topbar {
+                padding: 18px;
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .admin-info {
+                text-align: left;
+            }
+
+            .content {
+                padding: 20px 16px;
+            }
+        }
+
+
+
+
+        
+.inventory-panel {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.inventory-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 22px;
+    border-bottom: 1px solid var(--border);
+}
+
+.inventory-heading h3 {
+    margin: 0 0 6px;
+    font-size: 16px;
+}
+
+.inventory-heading p,
+.inventory-empty p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.inventory-heading a {
+    color: var(--primary);
+    font-size: 13px;
+    font-weight: bold;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.inventory-heading a:hover {
+    text-decoration: underline;
+}
+
+.inventory-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.inventory-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    text-align: left;
+}
+
+.inventory-table th,
+.inventory-table td {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.inventory-table th {
+    background: #f8fafc;
+    color: var(--muted);
+    font-weight: 600;
+}
+
+.inventory-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.inventory-table small {
+    display: block;
+    margin-top: 4px;
+    color: var(--muted);
+}
+
+.stock-badge {
+    display: inline-block;
+    padding: 5px 9px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.stock-low {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.stock-out {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.inventory-empty {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 24px;
+}
+
+.inventory-empty > span {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #dcfce7;
+    color: #166534;
+    font-size: 20px;
+}
+
+.inventory-empty strong {
+    display: block;
+    margin-bottom: 5px;
+}
+
+@media (max-width: 500px) {
+    .inventory-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .inventory-table th,
+    .inventory-table td {
+        padding: 12px;
+    }
+}
+
+
+
+    </style>
+</head>
+
+<body>
+<div class="layout">
+
+    <aside class="sidebar">
+        <div class="brand">CapCentral</div>
+        <div class="sidebar-subtitle">Store administration</div>
+
+        <nav>
+            <div class="nav-label">Main</div>
+
+            <a href="/admin" class="active">▦ Dashboard</a>
+            <a href="/admin/orders">🛒 Orders</a>
+            <a href="/admin/payments">💳 Payments</a>
+            <a href="/admin/deliveries">🚚 Deliveries</a>
+
+            <div class="nav-label">Management</div>
+
+
+            
+            <a href="/admin/categories" class="add-category-button">
+                + Add Category
+            </a>
+            <a href="/admin/products">📦 Products & Stock</a>
+            <a href="/admin/customers">👥 Customers</a>
+            <a href="/admin/services">🧢 Cap Services</a>
+
+        </nav>
+    </aside>
+
+    <main class="main">
+        <header class="topbar">
+            <h1>Admin Dashboard</h1>
+
+            <div class="admin-info">
+                Signed in as<br>
+                <strong><%= admin.username %></strong>
+            </div>
+        </header>
+
+        <div class="content">
+            <section class="welcome">
+                <h2>Welcome back, <%= admin.username %></h2>
+                <p>
+                    Monitor your store, review payments, manage stock,
+                    and track customer orders.
+                </p>
+            </section>
+
+            <h2 class="section-title">Business overview</h2>
+
+            <section class="stats">
+                <article class="stat-card">
+                    <div class="stat-label">Customers</div>
+                    <div class="stat-number">
+                        <%= Number(stats.customers).toLocaleString() %>
+                    </div>
+                    <div class="stat-note">Registered accounts counted by the current controller</div>
+                </article>
+
+                <a class="stat-card" href="/admin/orders" aria-label="Open Total Orders records">
+                    <div class="stat-label">Total Orders</div>
+                    <div class="stat-number">
+                        <%= Number(stats.orders).toLocaleString() %>
+                    </div>
+                    <div class="stat-note">Orders recorded in the database</div>
+                </a>
+
+                <a class="stat-card" href="/admin/payments" aria-label="Open Successful Payments records">
+                    <div class="stat-label">Successful Payments</div>
+                    <div class="stat-number">
+                        <%= Number(stats.payments).toLocaleString() %>
+                    </div>
+                    <div class="stat-note">Payments marked successful in the database</div>
+                </a>
+
+                <a class="stat-card" href="/admin/services" aria-label="Open Cap Services records">
+                    <div class="stat-label">Cap Services</div>
+                    <div class="stat-number">
+                        <%= Number(stats.services).toLocaleString() %>
+                    </div>
+                    <div class="stat-note">Click to view service records</div>
+                </a>
+
+                <a class="stat-card" href="/admin/revenue" aria-label="Open Recorded Revenue records">
+                    <div class="stat-label">Recorded Revenue</div>
+                    <div class="stat-number revenue">
+                        ₦<%= Number(stats.revenue).toLocaleString('en-NG', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                        }) %>
+                    </div>
+                    <div class="stat-note">Based on payments currently marked successful</div>
+                </a>
+            </section>
+
+            
+<h2 class="section-title">Inventory alerts</h2>
+
+<section class="inventory-panel">
+    <div class="inventory-heading">
+        <div>
+            <h3>Low stock & unavailable caps</h3>
+            <p>Products that may need restocking.</p>
+        </div>
+
+        <a href="/admin/products">Manage products →</a>
+    </div>
+
+    <% if (!lowStockProducts || lowStockProducts.length === 0) { %>
+        <div class="inventory-empty">
+            <span>✓</span>
+            <div>
+                <strong>No stock alerts</strong>
+                <p>No active products currently match the alert rules.</p>
+            </div>
+        </div>
+    <% } else { %>
+        <div class="inventory-table-wrap">
+            <table class="inventory-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Category</th>
+                        <th>Stock</th>
+                        <th>Price</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% lowStockProducts.forEach(product => { %>
+                        <tr>
+                            <td>
+                                <strong><%= product.name %></strong>
+                                <small><%= product.product_code %></small>
+                            </td>
+                            <td><%= product.category %></td>
+                            <td><%= Number(product.stock_quantity) %></td>
+                            <td>
+                                ₦<%= Number(product.price).toLocaleString('en-NG', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                }) %>
+                            </td>
+                            <td>
+                                <% if (Number(product.stock_quantity) === 0) { %>
+                                    <span class="stock-badge stock-out">Out of stock</span>
+                                <% } else { %>
+                                    <span class="stock-badge stock-low">Low stock</span>
+                                <% } %>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    <% } %>
+</section>
+
+
+
+<h2 class="section-title">Recent Orders</h2>
+
+<section class="inventory-panel">
+    <div class="inventory-heading">
+        <div>
+            <h3>Latest 5 orders</h3>
+            <p>Recently placed customer orders.</p>
+        </div>
+        <a href="/admin/orders">View all orders →</a>
+    </div>
+
+    <% if (!recentOrders || recentOrders.length === 0) { %>
+        <div class="inventory-empty">
+            <span>✓</span>
+            <div>
+                <strong>No orders yet</strong>
+                <p>New orders will appear here when customers place them.</p>
+            </div>
+        </div>
+    <% } else { %>
+        <div class="inventory-table-wrap">
+            <table class="inventory-table">
+                <thead>
+                    <tr>
+                        <th>Order reference</th>
+                        <th>Customer</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% recentOrders.forEach(order => { %>
+                        <tr>
+                            <td>
+                                <strong><%= order.order_reference || ('#' + order.id) %></strong>
+                            </td>
+                            <td><%= order.customer_name || 'N/A' %></td>
+                            <td>
+                                <%= order.currency || 'NGN' %>
+                                <%= Number(order.total_amount || 0).toLocaleString('en-NG', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                }) %>
+                            </td>
+                            <td>
+                                <span class="stock-badge <%= String(order.order_status || '').toLowerCase() === 'completed' || String(order.order_status || '').toLowerCase() === 'delivered' ? 'stock-low' : 'stock-out' %>">
+                                    <%= order.order_status || 'Pending' %>
+                                </span>
+                            </td>
+                            <td>
+                                <%= order.created_at ? new Date(order.created_at).toLocaleDateString('en-GB') : 'N/A' %>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    <% } %>
+</section>
+
+
+
+            <h2 class="section-title">Store management</h2>
+
+            <section class="management-grid">
+                <a class="management-card" href="/admin/orders">
+                    <div class="management-icon">🛒</div>
+                    <h3>Orders</h3>
+                    <p>Review customer orders and manage order progress.</p>
+                </a>
+
+                <a class="management-card" href="/admin/payments">
+                    <div class="management-icon">💳</div>
+                    <h3>Payments</h3>
+                    <p>Review payment records and transaction statuses.</p>
+                </a>
+
+                <a class="management-card" href="/admin/revenue">
+                    <div class="management-icon">₦</div>
+                    <h3>Recorded Revenue</h3>
+                    <p>View successful transactions included in recorded revenue.</p>
+                </a>
+
+                <a class="management-card" href="/admin/deliveries">
+                    <div class="management-icon">🚚</div>
+                    <h3>Deliveries</h3>
+                    <p>Track deliveries and update delivery progress.</p>
+                </a>
+
+                <a class="management-card" href="/admin/products">
+                    <div class="management-icon">📦</div>
+                    <h3>Products & Stock</h3>
+                    <p>Manage product details, prices, and available quantities.</p>
+                </a>
+
+                <a class="management-card" href="/admin/customers">
+                    <div class="management-icon">👥</div>
+                    <h3>Customers</h3>
+                    <p>Review customer accounts and contact information.</p>
+                </a>
+
+                <a class="management-card" href="/admin/services">
+                    <div class="management-icon">🧢</div>
+                    <h3>Cap Services</h3>
+                    <p>Review resizing and laundry service requests.</p>
+                </a>
+            </section>
+        </div>
+
+        <footer class="footer">
+            CapCentral Administration<br>
+            <span id="dashboard-refresh-status">Live dashboard refresh is enabled (every 15 seconds).</span>
+        </footer>
+    </main>
+
+</div>
+<!-- <script>
+    // Refresh the dashboard so server-rendered figures stay current without
+    // requiring the administrator to press Ctrl+F5. Other admin pages are not refreshed.
+    (() => {
+        const REFRESH_INTERVAL_MS = 15000;
+        let refreshTimer = null;
+
+        const scheduleRefresh = () => {
+            if (refreshTimer) clearTimeout(refreshTimer);
+            if (document.visibilityState === 'visible') {
+                refreshTimer = setTimeout(() => {
+                    window.location.reload();
+                }, REFRESH_INTERVAL_MS);
+            }
+        };
+
+        document.addEventListener('visibilitychange', scheduleRefresh);
+        scheduleRefresh();
+    })();
+</script> -->
+</body>
+</html>
