@@ -4,7 +4,7 @@ const router = express.Router();
 const adminController = require('../controllers/adminController');
 const requireAdmin = require('../middlewares/adminMiddleware');
 const adminProductController = require('../controllers/adminProductController');
-const categoryController = require('../controllers/categoryController');
+
 
 // Admin login page and submission
 router.get('/admin/login', adminController.renderLogin);
@@ -32,6 +32,6 @@ router.post('/admin/products', requireAdmin, adminProductController.addProduct);
 router.post('/admin/products/:id/edit', requireAdmin, adminProductController.updateProduct);
 router.post('/admin/products/:id/toggle', requireAdmin, adminProductController.toggleProduct);
 router.post('/admin/products/:id/stock', requireAdmin, adminProductController.updateStock);
-router.get('/admin/categories', requireAdmin, categoryController.index);
+
 
 module.exports = router;

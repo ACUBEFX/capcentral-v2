@@ -19,7 +19,7 @@ const profileRoutes = require('./routes/profileroutes');
 const checkoutRoutes = require('./routes/checkoutroutes');
 const servingPages = require('./routes/serveroutes');
 const adminRoutes = require('./routes/adminroutes');
-const categoryRoutes = require('./routes/categoryRoutes');
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -60,7 +60,7 @@ app.use('/', profileRoutes);
 app.use('/', servingPages);
 app.use('/', checkoutRoutes);
 app.use('/', adminRoutes);
-app.use('/api/categories', categoryRoutes);
+
 console.log(Date.now());
 
 

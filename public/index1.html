@@ -45,7 +45,7 @@
         </div>
 
         <!-- Navbar Items -->
-        <ul class="nav-links" id="dynamic-category-links">
+        <ul class="nav-links">
             <li><a href="/products">Zanna Bukar</a></li>
             <li><a href="/bongol">Bongol</a></li>
             <li><a href="/atiku">Atiku</a></li>
@@ -565,43 +565,7 @@
 <script src="/caps-catalog.js" data-category="Caps"></script>
 
 
-<script>
-document.addEventListener('DOMContentLoaded', async () => {
-    const menu = document.getElementById('dynamic-category-links');
-    if (!menu) return;
 
-    try {
-        const response = await fetch('/api/categories/public', {
-            cache: 'no-store'
-        });
-
-        if (!response.ok) {
-            throw new Error('Could not load categories.');
-        }
-
-        const result = await response.json();
-
-        if (!result.success || !Array.isArray(result.categories)) {
-            throw new Error('Invalid category response.');
-        }
-
-        menu.replaceChildren();
-
-        result.categories.forEach(category => {
-            const item = document.createElement('li');
-            const link = document.createElement('a');
-
-            link.href = '/' + encodeURIComponent(category.slug);
-            link.textContent = category.name;
-
-            item.appendChild(link);
-            menu.appendChild(item);
-        });
-    } catch (error) {
-        console.error('Category navigation error:', error);
-    }
-});
-</script>
 
 
 

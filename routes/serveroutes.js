@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const path = require('path');
 const db = require('../models/database');
-const fs = require('fs');
+
 
 router.get('/products', (req, res) => res.sendFile(path.join(__dirname, '../public', 'index1.html')));
 router.get('/caps', (req, res) => res.sendFile(path.join(__dirname, '../public', 'index1.html')));
@@ -21,78 +21,6 @@ router.get('/perfume', (req, res) => {res.sendFile(path.join(__dirname, '../publ
 router.get('/shades', (req, res) => { res.sendFile(path.join(__dirname, '../public', 'shades.html'));});
 
 
-
-// Dynamic pages for categories created by the admin.
-// Existing explicit routes above remain unchanged.
-router.get('/:slug', (req, res, next) => {
-    const slug = req.params.slug;
-
-    // Do not treat API URLs as category page URLs.
-    if (slug === 'api') {
-        return next();
-    }
-
-    const sql = `
-        SELECT name, slug, template
-        FROM categories
-        WHERE slug = ?
-          AND is_visible = 1
-        LIMIT 1
-    `;
-
-    db.query(sql, [slug], (err, rows) => {
-        if (err) {
-            console.error('Error loading dynamic category page:', err);
-            return res.status(500).send('Could not load category page.');
-        }
-
-        if (!rows.length) {
-            return next();
-        }
-
-        const category = rows[0];
-
-        
-        const templatePath = path.join(
-            __dirname,
-            '../public',
-            'category-template.html'
-        );
-
-        fs.readFile(templatePath, 'utf8', (fileErr, html) => {
-            if (fileErr) {
-                console.error('Could not read category template:', fileErr);
-                return res.status(500).send('Could not load category page.');
-            }
-
-            const config = {
-                category: category.name,
-                requiresSize: category.template === 'size-select',
-                sizes: category.template === 'size-select'
-                    ? ['22', '22½', '23', '23½']
-                    : []
-            };
-
-            const safeConfig = JSON.stringify(config).replace(/</g, '\\u003c');
-
-            const configScript =
-                '<script>window.CAPCENTRAL_CATALOGUE = ' +
-                safeConfig +
-                ';</script>';
-
-            if (!html.includes('<!-- CATEGORY_CONFIG -->')) {
-                console.error('Category configuration marker is missing.');
-                return res.status(500).send('Category template is not configured.');
-            }
-
-            html = html.replace('<!-- CATEGORY_CONFIG -->', configScript);
-
-            res.set('Cache-Control', 'no-store');
-            res.type('html').send(html);
-        });
-
-    });
-});
 
 
 
