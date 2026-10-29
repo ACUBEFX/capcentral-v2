@@ -1,5 +1,6 @@
 
-document.addEventListener('DOMContentLoaded', () => {
+function initCataloguePage() {
+    console.log('CATALOGUE SCRIPT STARTED');
     const config = window.CAPCENTRAL_CATALOGUE || {};
     const category = config.category || 'Hats';
     const requiresSize = Boolean(config.requiresSize);
@@ -305,6 +306,11 @@ document.addEventListener('DOMContentLoaded', () => {
             window.openModal(index);
         }
     });
-
     loadProducts();
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCataloguePage, { once: true });
+} else {
+    initCataloguePage();
+}

@@ -1,0 +1,291 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Categories | CapCentral</title>
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 24px;
+            background: #f4f6f9;
+            color: #222;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 10px 15px;
+            border: 0;
+            border-radius: 6px;
+            background: #172554;
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .button-delete {
+            display: inline-block;
+            padding: 10px 15px;
+            margin-top: 8px;
+            border: 0;
+            border-radius: 6px;
+            background: #dc2626;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .button-delete:hover {
+            background: #b91c1c;
+}
+
+        .panel {
+            padding: 22px;
+            margin-bottom: 22px;
+            border-radius: 10px;
+            background: white;
+            box-shadow: 0 2px 8px #0000000d;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 7px;
+            font-weight: bold;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 11px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        .table-wrap { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 13px 10px;
+            border-bottom: 1px solid #eee;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        th { background: #f8fafc; }
+
+        .status {
+            display: inline-block;
+            padding: 5px 9px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+
+        .visible { background: #dcfce7; color: #166534; }
+        .hidden { background: #fee2e2; color: #991b1b; }
+
+        .muted { color: #666; font-size: 13px; }
+
+        @media (max-width: 600px) {
+            body { padding: 14px; }
+            .panel { padding: 14px; }
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <header class="header">
+            <div>
+                <h1>Categories</h1>
+                <p class="muted">Create categories and control their customer visibility.</p>
+            </div>
+            <a href="/admin" class="button">Back to Dashboard</a>
+        </header>
+
+        <section class="panel">
+            <h2>Add Category</h2>
+
+            <form action="/admin/categories" method="POST">
+                <div class="form-grid">
+                    <div>
+                        <label for="name">Category Name</label>
+                        <input
+                            id="name"
+                            name="name"
+                            type="text"
+                            maxlength="100"
+                            placeholder="e.g. Perfumes"
+                            required
+                        >
+                    </div>
+
+                    <div>
+                        <label for="template">Product Card Template</label>
+                        <select id="template" name="template">
+                            <option value="standard">Standard product card</option>
+                            <option value="size-select">Product card with size selection</option>
+                        </select>
+                    </div>
+                </div>
+
+                <p class="muted">
+                    Choose size selection for products that need sizes.
+                </p>
+
+                <button class="button" type="submit">Add Category</button>
+            </form>
+        </section>
+
+        <section class="panel">
+            <h2>Existing Categories</h2>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Template</th>
+                            <th>Customer Visibility</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (!categories || categories.length === 0) { %>
+                            <tr>
+                                <td colspan="4">No categories found.</td>
+                            </tr>
+                        <% } else { %>
+                            <% categories.forEach(category => { %>
+                                <tr>
+                                    <td>
+                                        <strong><%= category.name %></strong>
+                                        <div class="muted"><%= category.slug %></div>
+                                    </td>
+                                    <td>
+                                        <%= category.template === 'size-select'
+                                            ? 'Size selection'
+                                            : 'Standard' %>
+                                    </td>
+                                    <td>
+                                        <span class="status <%= category.is_visible ? 'visible' : 'hidden' %>">
+                                            <%= category.is_visible ? 'Visible' : 'Hidden' %>
+                                        </span>
+                                    </td>
+                                                                        <td>
+                                        <form
+                                            action="/admin/categories/<%= category.id %>/toggle"
+                                            method="POST"
+                                        >
+                                            <button class="button" type="submit">
+                                                <%= category.is_visible
+                                                    ? 'Hide from customers'
+                                                    : 'Show to customers' %>
+                                            </button>
+                                        </form>
+
+                                        <form
+                                            action="/admin/categories/<%= category.id %>/delete"
+                                            method="POST"
+                                            onsubmit="return confirm('Move this category to Deleted Categories? Its products will be kept.');"                                        >
+                                            <button class="button-delete" type="submit">
+                                                Delete Category
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        
+        </section>
+
+        <section class="panel">
+            <h2>Deleted Categories</h2>
+            <p class="muted">
+                Deleted categories are kept here so you can restore them.
+                Their products are not deleted.
+            </p>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Template</th>
+                            <th>Previous Visibility</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (!deletedCategories || deletedCategories.length === 0) { %>
+                            <tr>
+                                <td colspan="4">No deleted categories.</td>
+                            </tr>
+                        <% } else { %>
+                            <% deletedCategories.forEach(category => { %>
+                                <tr>
+                                    <td>
+                                        <strong><%= category.name %></strong>
+                                        <div class="muted"><%= category.slug %></div>
+                                    </td>
+                                    <td>
+                                        <%= category.template === 'size-select'
+                                            ? 'Size selection'
+                                            : 'Standard' %>
+                                    </td>
+                                    <td>
+                                        <span class="status <%= category.is_visible ? 'visible' : 'hidden' %>">
+                                            <%= category.is_visible ? 'Visible' : 'Hidden' %>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <form
+                                            action="/admin/categories/<%= category.id %>/restore"
+                                            method="POST"
+                                            onsubmit="return confirm('Restore this category?');"
+                                        >
+                                            <button class="button" type="submit">
+                                                Restore Category
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <% }); %>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
+

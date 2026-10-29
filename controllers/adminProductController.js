@@ -1,32 +1,64 @@
 
 const db = require('../models/database');
 
-// Display all products in the admin dashboard
-// Display all products in the admin dashboard
-exports.listProducts = (req, res) => {
-    const sql = `
-        SELECT id, product_code, name, description, category, cap_type,
-               price, stock_quantity, image_url, is_active
-        FROM products
-        ORDER BY category ASC, name ASC
-    `;
+const validCapTypes = [
+    'Zanna Bukar',
+    'Bongol',
+    'Atiku',
+    'Tinubu/Fila',
+    'Miyaram',
+    'Kindea',
+    'Tangaran',
+    'Tonak'
+];
 
-    db.query(sql, (err, products) => {
-        if (err) {
-            console.error('Error loading admin products:', err);
-            return res.status(500).send('Could not load products.');
-        }
+// Check that the category exists in the database.
+async function categoryExists(connection, category) {
+    const [rows] = await connection.query(
+       `SELECT id
+        FROM categories
+        WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))
+        AND is_deleted = 0
+        LIMIT 1`,
+        [category]
+    );
+
+    return rows.length > 0;
+}
+
+// Display all products and available categories in the admin dashboard.
+exports.listProducts = async (req, res) => {
+    try {
+        const [products] = await db.promise().query(`
+            SELECT id, product_code, name, description, category, cap_type,
+                   price, stock_quantity, image_url, is_active
+            FROM products
+            ORDER BY category ASC, name ASC
+        `);
+
+        const [categories] = await db.promise().query(`
+            SELECT id, name, slug, template, is_visible
+            FROM categories
+            WHERE is_deleted = 0
+            ORDER BY name ASC
+        `);
 
         res.render('admin/products', {
-            products: products,
+            products,
+            categories,
             admin: req.admin,
             message: null,
             error: null
         });
-    });
+    } catch (err) {
+    console.error('Error loading admin products:', err);
+    return res.status(500).send(
+        'Could not load products: ' + err.message
+    );
+}
 };
 
-// Add a new product
+// Add a new product.
 exports.addProduct = async (req, res) => {
     const {
         product_code,
@@ -39,23 +71,32 @@ exports.addProduct = async (req, res) => {
         cap_type
     } = req.body;
 
-    const validCategories = ['Caps', 'Shoes', 'Hats', 'Thobes'];
-    const validCapTypes = ['Zanna Bukar', 'Bongol', 'Atiku', 'Tinubu/Fila', 'Miyaram', 'Kindea', 'Tangaran', 'Tonak'];
-    const capType = category === 'Caps' ? String(cap_type || '').trim() : null;
-
+    const productCode = String(product_code || '').trim();
+    const productName = String(name || '').trim();
+    const categoryName = String(category || '').trim();
     const productPrice = Number(price);
-    // Every cap is a unique one-off item, so a newly created cap starts at exactly one.
-    const quantity = category === 'Caps'
+
+    const capType = categoryName === 'Caps'
+        ? String(cap_type || '').trim()
+        : null;
+
+    // Caps remain unique, one-off items with stock of 1.
+    const quantity = categoryName === 'Caps'
         ? 1
-        : (stock_quantity === '' || stock_quantity === undefined ? 10 : Number(stock_quantity));
+        : (
+            stock_quantity === '' || stock_quantity === undefined
+                ? 10
+                : Number(stock_quantity)
+        );
 
     if (
-        !product_code?.trim() ||
-        !name?.trim() ||
-        !validCategories.includes(category) ||
-        (category === 'Caps' && !validCapTypes.includes(capType)) ||
+        !productCode ||
+        !productName ||
+        !categoryName ||
+        categoryName.length > 100 ||
         !Number.isFinite(productPrice) ||
         productPrice < 0 ||
+        (categoryName === 'Caps' && !validCapTypes.includes(capType)) ||
         !Number.isInteger(quantity) ||
         quantity < 0 ||
         quantity > 4294967295
@@ -69,31 +110,41 @@ exports.addProduct = async (req, res) => {
         connection = await db.promise().getConnection();
         await connection.beginTransaction();
 
+        // Ensure the submitted category exists before inserting the product.
+        const exists = await categoryExists(connection, categoryName);
+
+        if (!exists) {
+            await connection.rollback();
+            return res.status(400).send(
+                'The selected category does not exist. Please choose an existing category.'
+            );
+        }
+
         const [result] = await connection.query(
             `INSERT INTO products
-            (product_code, name, description, category, cap_type,
-             price, stock_quantity, image_url, is_active)
+                (product_code, name, description, category, cap_type,
+                 price, stock_quantity, image_url, is_active)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
             [
-                product_code.trim(),
-                name.trim(),
-                description?.trim() || null,
-                category,
+                productCode,
+                productName,
+                String(description || '').trim() || null,
+                categoryName,
                 capType,
                 productPrice,
                 quantity,
-                image_url?.trim() || null
+                String(image_url || '').trim() || null
             ]
         );
 
         if (quantity > 0) {
             await connection.query(
                 `INSERT INTO stock_movements
-                (product_code, change_quantity, previous_quantity,
-                 new_quantity, reason, admin_user_id)
+                    (product_code, change_quantity, previous_quantity,
+                     new_quantity, reason, admin_user_id)
                  VALUES (?, ?, ?, ?, ?, ?)`,
                 [
-                    product_code.trim(),
+                    productCode,
                     quantity,
                     0,
                     quantity,
@@ -105,8 +156,8 @@ exports.addProduct = async (req, res) => {
 
         await connection.query(
             `INSERT INTO admin_audit_logs
-            (admin_user_id, action, entity_type, entity_id,
-             details, ip_address)
+                (admin_user_id, action, entity_type, entity_id,
+                 details, ip_address)
              VALUES (?, ?, ?, ?, ?, ?)`,
             [
                 req.admin.id,
@@ -114,9 +165,9 @@ exports.addProduct = async (req, res) => {
                 'product',
                 result.insertId,
                 JSON.stringify({
-                    product_code: product_code.trim(),
-                    name: name.trim(),
-                    category,
+                    product_code: productCode,
+                    name: productName,
+                    category: categoryName,
                     cap_type: capType,
                     price: productPrice,
                     stock_quantity: quantity
@@ -126,7 +177,7 @@ exports.addProduct = async (req, res) => {
         );
 
         await connection.commit();
-        res.redirect('/admin/products');
+        return res.redirect('/admin/products');
     } catch (error) {
         if (connection) {
             await connection.rollback().catch(() => {});
@@ -140,7 +191,7 @@ exports.addProduct = async (req, res) => {
             );
         }
 
-        res.status(500).send('Could not add product.');
+        return res.status(500).send('Could not add product.');
     } finally {
         if (connection) {
             connection.release();
@@ -148,8 +199,7 @@ exports.addProduct = async (req, res) => {
     }
 };
 
-
-// Activate or deactivate a product
+// Activate or deactivate a product.
 exports.toggleProduct = async (req, res) => {
     const productId = Number(req.params.id);
 
@@ -186,8 +236,8 @@ exports.toggleProduct = async (req, res) => {
 
         await connection.query(
             `INSERT INTO admin_audit_logs
-            (admin_user_id, action, entity_type, entity_id,
-             details, ip_address)
+                (admin_user_id, action, entity_type, entity_id,
+                 details, ip_address)
              VALUES (?, ?, ?, ?, ?, ?)`,
             [
                 req.admin.id,
@@ -204,14 +254,14 @@ exports.toggleProduct = async (req, res) => {
         );
 
         await connection.commit();
-        res.redirect('/admin/products');
+        return res.redirect('/admin/products');
     } catch (error) {
         if (connection) {
             await connection.rollback().catch(() => {});
         }
 
         console.error('Error changing product status:', error);
-        res.status(500).send('Could not update product status.');
+        return res.status(500).send('Could not update product status.');
     } finally {
         if (connection) {
             connection.release();
@@ -219,8 +269,7 @@ exports.toggleProduct = async (req, res) => {
     }
 };
 
-
-// Update a product's stock quantity
+// Update a product's stock quantity.
 exports.updateStock = async (req, res) => {
     const productId = Number(req.params.id);
     const rawQuantity = req.body.stock_quantity;
@@ -235,9 +284,7 @@ exports.updateStock = async (req, res) => {
         newQuantity < 0 ||
         newQuantity > 4294967295
     ) {
-        return res.status(400).send(
-            'Please enter a valid stock quantity.'
-        );
+        return res.status(400).send('Please enter a valid stock quantity.');
     }
 
     let connection;
@@ -260,7 +307,7 @@ exports.updateStock = async (req, res) => {
         }
 
         const product = products[0];
-        const previousQuantity = product.stock_quantity;
+        const previousQuantity = Number(product.stock_quantity);
         const changeQuantity = newQuantity - previousQuantity;
 
         await connection.query(
@@ -271,8 +318,8 @@ exports.updateStock = async (req, res) => {
         if (changeQuantity !== 0) {
             await connection.query(
                 `INSERT INTO stock_movements
-                (product_code, change_quantity, previous_quantity,
-                 new_quantity, reason, admin_user_id)
+                    (product_code, change_quantity, previous_quantity,
+                     new_quantity, reason, admin_user_id)
                  VALUES (?, ?, ?, ?, ?, ?)`,
                 [
                     product.product_code,
@@ -287,8 +334,8 @@ exports.updateStock = async (req, res) => {
 
         await connection.query(
             `INSERT INTO admin_audit_logs
-            (admin_user_id, action, entity_type, entity_id,
-             details, ip_address)
+                (admin_user_id, action, entity_type, entity_id,
+                 details, ip_address)
              VALUES (?, ?, ?, ?, ?, ?)`,
             [
                 req.admin.id,
@@ -305,14 +352,14 @@ exports.updateStock = async (req, res) => {
         );
 
         await connection.commit();
-        res.redirect('/admin/products');
+        return res.redirect('/admin/products');
     } catch (error) {
         if (connection) {
             await connection.rollback().catch(() => {});
         }
 
         console.error('Error updating stock:', error);
-        res.status(500).send('Could not update stock.');
+        return res.status(500).send('Could not update stock.');
     } finally {
         if (connection) {
             connection.release();
@@ -320,94 +367,181 @@ exports.updateStock = async (req, res) => {
     }
 };
 
-
 // Edit an existing product's details and stock in one transaction.
 exports.updateProduct = async (req, res) => {
     const productId = Number(req.params.id);
-    const { product_code, name, description, category, cap_type, price, stock_quantity, image_url } = req.body;
-    const validCategories = ['Caps', 'Shoes', 'Hats', 'Thobes'];
-    const validCapTypes = ['Zanna Bukar', 'Bongol', 'Atiku', 'Tinubu/Fila', 'Miyaram', 'Kindea', 'Tangaran', 'Tonak'];
-    const capType = category === 'Caps' ? String(cap_type || '').trim() : null;
+
+    const {
+        product_code,
+        name,
+        description,
+        category,
+        cap_type,
+        price,
+        stock_quantity,
+        image_url
+    } = req.body;
+
+    const productCode = String(product_code || '').trim();
+    const productName = String(name || '').trim();
+    const categoryName = String(category || '').trim();
     const productPrice = Number(price);
     const newQuantity = Number(stock_quantity);
 
+    const capType = categoryName === 'Caps'
+        ? String(cap_type || '').trim()
+        : null;
+
     if (
-        !Number.isInteger(productId) || productId < 1 ||
-        !product_code?.trim() || !name?.trim() || !validCategories.includes(category) ||
-        (category === 'Caps' && !validCapTypes.includes(capType)) ||
-        !Number.isFinite(productPrice) || productPrice < 0 ||
-        stock_quantity === undefined || stock_quantity === '' ||
-        !Number.isInteger(newQuantity) || newQuantity < 0 || newQuantity > 4294967295
+        !Number.isInteger(productId) ||
+        productId < 1 ||
+        !productCode ||
+        !productName ||
+        !categoryName ||
+        categoryName.length > 100 ||
+        (categoryName === 'Caps' && !validCapTypes.includes(capType)) ||
+        !Number.isFinite(productPrice) ||
+        productPrice < 0 ||
+        stock_quantity === undefined ||
+        stock_quantity === '' ||
+        !Number.isInteger(newQuantity) ||
+        newQuantity < 0 ||
+        newQuantity > 4294967295
     ) {
         return res.status(400).send('Please enter valid product details.');
     }
 
     let connection;
+
     try {
         connection = await db.promise().getConnection();
         await connection.beginTransaction();
 
+        const exists = await categoryExists(connection, categoryName);
+
+        if (!exists) {
+            await connection.rollback();
+            return res.status(400).send(
+                'The selected category does not exist. Please choose an existing category.'
+            );
+        }
+
         const [rows] = await connection.query(
-            `SELECT id, product_code, name, description, category, cap_type, price,
-                    stock_quantity, image_url
-             FROM products WHERE id = ? FOR UPDATE`,
+            `SELECT id, product_code, name, description, category, cap_type,
+                    price, stock_quantity, image_url
+             FROM products
+             WHERE id = ?
+             FOR UPDATE`,
             [productId]
         );
+
         if (!rows.length) {
             await connection.rollback();
             return res.status(404).send('Product not found.');
         }
 
         const old = rows[0];
-        // Caps are one-of-a-kind: preserve their Available/Sold state while editing,
-        // and set stock to 1 if a product is newly changed into the Caps category.
-        const effectiveQuantity = category === 'Caps'
-            ? (old.category === 'Caps' ? Math.min(Number(old.stock_quantity), 1) : 1)
+
+        // Caps are one-of-a-kind: preserve their Available/Sold state while
+        // editing, and set stock to 1 when changing another product into Caps.
+        const effectiveQuantity = categoryName === 'Caps'
+            ? (
+                old.category === 'Caps'
+                    ? Math.min(Number(old.stock_quantity), 1)
+                    : 1
+            )
             : newQuantity;
+
         const delta = effectiveQuantity - Number(old.stock_quantity);
+
         await connection.query(
             `UPDATE products
-             SET product_code = ?, name = ?, description = ?, category = ?, cap_type = ?, price = ?,
-                 stock_quantity = ?, image_url = ?
+             SET product_code = ?, name = ?, description = ?, category = ?,
+                 cap_type = ?, price = ?, stock_quantity = ?, image_url = ?
              WHERE id = ?`,
-            [product_code.trim(), name.trim(), description?.trim() || null, category, capType, productPrice,
-             effectiveQuantity, image_url?.trim() || null, productId]
+            [
+                productCode,
+                productName,
+                String(description || '').trim() || null,
+                categoryName,
+                capType,
+                productPrice,
+                effectiveQuantity,
+                String(image_url || '').trim() || null,
+                productId
+            ]
         );
 
         if (delta !== 0) {
             await connection.query(
                 `INSERT INTO stock_movements
-                (product_code, change_quantity, previous_quantity, new_quantity,
-                 reason, admin_user_id)
+                    (product_code, change_quantity, previous_quantity,
+                     new_quantity, reason, admin_user_id)
                  VALUES (?, ?, ?, ?, ?, ?)`,
-                [old.product_code, delta, Number(old.stock_quantity), effectiveQuantity,
-                 'Admin product edit', req.admin.id]
+                [
+                    old.product_code,
+                    delta,
+                    Number(old.stock_quantity),
+                    effectiveQuantity,
+                    'Admin product edit',
+                    req.admin.id
+                ]
             );
         }
 
         await connection.query(
             `INSERT INTO admin_audit_logs
-            (admin_user_id, action, entity_type, entity_id, details, ip_address)
-            VALUES (?, ?, ?, ?, ?, ?)`,
-            [req.admin.id, 'EDIT_PRODUCT', 'product', productId,
-             JSON.stringify({
-                 previous: { product_code: old.product_code, name: old.name, category: old.category, cap_type: old.cap_type, price: old.price,
-                     stock_quantity: old.stock_quantity, image_url: old.image_url },
-                 updated: { product_code: product_code.trim(), name: name.trim(), category, cap_type: capType, price: productPrice,
-                     stock_quantity: effectiveQuantity, image_url: image_url?.trim() || null }
-             }), req.ip]
+                (admin_user_id, action, entity_type, entity_id,
+                 details, ip_address)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [
+                req.admin.id,
+                'EDIT_PRODUCT',
+                'product',
+                productId,
+                JSON.stringify({
+                    previous: {
+                        product_code: old.product_code,
+                        name: old.name,
+                        category: old.category,
+                        cap_type: old.cap_type,
+                        price: old.price,
+                        stock_quantity: old.stock_quantity,
+                        image_url: old.image_url
+                    },
+                    updated: {
+                        product_code: productCode,
+                        name: productName,
+                        category: categoryName,
+                        cap_type: capType,
+                        price: productPrice,
+                        stock_quantity: effectiveQuantity,
+                        image_url: String(image_url || '').trim() || null
+                    }
+                }),
+                req.ip
+            ]
         );
 
         await connection.commit();
-        res.redirect('/admin/products');
+        return res.redirect('/admin/products');
     } catch (error) {
-        if (connection) await connection.rollback().catch(() => {});
-        console.error('Error editing product:', error);
-        if (error.code === 'ER_DUP_ENTRY') {
-            return res.status(409).send('That product code is already in use. Choose a unique code.');
+        if (connection) {
+            await connection.rollback().catch(() => {});
         }
-        res.status(500).send('Could not edit product.');
+
+        console.error('Error editing product:', error);
+
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(409).send(
+                'That product code is already in use. Choose a unique code.'
+            );
+        }
+
+        return res.status(500).send('Could not edit product.');
     } finally {
-        if (connection) connection.release();
+        if (connection) {
+            connection.release();
+        }
     }
 };

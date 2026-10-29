@@ -4,6 +4,40 @@ const path = require('path');
 const db = require('../models/database');
 
 
+
+
+
+
+
+
+/**
+ * Public API: return categories visible to customers.
+ */
+router.get('/api/categories', (req, res) => {
+    const sql = `
+        SELECT id, name, slug, template
+        FROM categories
+        WHERE is_visible = 1
+        AND is_deleted = 0
+        ORDER BY id ASC
+    `;
+
+    db.query(sql, (err, categories) => {
+        if (err) {
+            console.error('Error loading public categories:', err);
+
+            return res.status(500).json({
+                error: 'Could not load categories.'
+            });
+        }
+
+        res.set('Cache-Control', 'no-store');
+        return res.json(categories);
+    });
+});
+
+
+
 router.get('/products', (req, res) => res.sendFile(path.join(__dirname, '../public', 'index1.html')));
 router.get('/caps', (req, res) => res.sendFile(path.join(__dirname, '../public', 'index1.html')));
 router.get('/kindea', (req, res) => res.sendFile(path.join(__dirname, '../public', 'kindea.html')));
@@ -19,6 +53,40 @@ router.get('/tonak', (req, res) => res.sendFile(path.join(__dirname, '../public'
 router.get('/trucker', (req, res) => res.sendFile(path.join(__dirname, '../public', 'trucker.html')));
 router.get('/perfume', (req, res) => {res.sendFile(path.join(__dirname, '../public', 'perfume.html'));});
 router.get('/shades', (req, res) => { res.sendFile(path.join(__dirname, '../public', 'shades.html'));});
+
+
+
+/**
+ * Generic page for dynamically created categories.
+ * Keep this route after the existing named page routes.
+ */
+router.get('/category/:slug', (req, res) => {
+    const slug = String(req.params.slug || '').trim();
+
+    const sql = `
+        SELECT id, name, slug, template
+        FROM categories
+        WHERE slug = ?
+        AND is_visible = 1
+        AND is_deleted = 0
+        LIMIT 1
+    `;
+
+    db.query(sql, [slug], (err, rows) => {
+        if (err) {
+            console.error('Error loading category page:', err);
+            return res.status(500).send('Unable to load category.');
+        }
+
+        if (!rows.length) {
+            return res.status(404).send('Category not found.');
+        }
+
+        return res.sendFile(
+            path.join(__dirname, '../public', 'category.html')
+        );
+    });
+});
 
 
 
