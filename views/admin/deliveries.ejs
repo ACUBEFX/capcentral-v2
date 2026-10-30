@@ -1,42 +1,425 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CapCentral | Delivery Management</title>
-  <style>
-    *{box-sizing:border-box}body{margin:0;background:#f4f6fb;color:#1e293b;font-family:Arial,sans-serif}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;background:#fff;border-bottom:1px solid #e2e8f0;padding:20px 26px}h1{font-size:23px;margin:0 0 6px}.muted{font-size:13px;color:#64748b;line-height:1.5}main{max-width:1700px;margin:auto;padding:22px}.notice,.error{padding:13px 15px;border-radius:8px;margin-bottom:16px}.notice{background:#e5f7eb;color:#176337}.error{background:#fde8e8;color:#942b2b}.links{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:18px}.links a{font-size:13px;color:#172554}.tablewrap{overflow:auto;background:white;border:1px solid #e2e8f0;border-radius:12px}table{border-collapse:collapse;width:100%;min-width:1250px}th,td{text-align:left;vertical-align:top;border-bottom:1px solid #e9edf2;padding:13px;font-size:13px;max-width:380px;overflow-wrap:anywhere}th{background:#f8fafc;white-space:nowrap}.delivery-form{min-width:320px;display:grid;gap:8px}.delivery-form input,.delivery-form textarea,.delivery-form select{width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font:inherit;background:white}.delivery-form textarea{min-height:62px;resize:vertical}.delivery-form button,.status-form button{border:0;border-radius:6px;padding:9px 12px;background:#172554;color:white;font-weight:600;cursor:pointer}.status-form{display:flex;gap:6px;min-width:220px}.status-form select{min-width:130px;padding:8px;border:1px solid #cbd5e1;border-radius:6px}.empty{text-align:center;padding:32px;color:#64748b}.badge{display:inline-block;border-radius:20px;background:#e2e8f0;padding:5px 9px;font-size:12px}
-    @media(max-width:650px){.top{align-items:flex-start;flex-direction:column;padding:16px}main{padding:12px}}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CapCentral | Delivery Management</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #f4f6fb;
+            color: #1e293b;
+            font-family: Arial, sans-serif;
+        }
+
+        .top {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: center;
+            background: #fff;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 20px 26px;
+        }
+
+        h1 {
+            font-size: 23px;
+            margin: 0 0 6px;
+        }
+
+        .muted {
+            font-size: 13px;
+            color: #64748b;
+            line-height: 1.5;
+        }
+
+        main {
+            max-width: 1700px;
+            margin: auto;
+            padding: 22px;
+        }
+
+        .notice,
+        .error {
+            padding: 13px 15px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .notice {
+            background: #e5f7eb;
+            color: #176337;
+        }
+
+        .error {
+            background: #fde8e8;
+            color: #942b2b;
+        }
+
+        .links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .links a {
+            font-size: 13px;
+            color: #172554;
+        }
+
+        .tablewrap {
+            overflow: auto;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            min-width: 1250px;
+        }
+
+        th,
+        td {
+            text-align: left;
+            vertical-align: top;
+            border-bottom: 1px solid #e9edf2;
+            padding: 13px;
+            font-size: 13px;
+            max-width: 380px;
+            overflow-wrap: anywhere;
+        }
+
+        th {
+            background: #f8fafc;
+            white-space: nowrap;
+        }
+
+        .delivery-form {
+            min-width: 320px;
+            display: grid;
+            gap: 8px;
+        }
+
+        .delivery-form input,
+        .delivery-form textarea,
+        .delivery-form select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font: inherit;
+            background: white;
+        }
+
+        .delivery-form textarea {
+            min-height: 62px;
+            resize: vertical;
+        }
+
+        .delivery-form button,
+        .status-form button {
+            border: 0;
+            border-radius: 6px;
+            padding: 9px 12px;
+            background: #172554;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .status-form {
+            display: flex;
+            gap: 6px;
+            min-width: 220px;
+        }
+
+        .status-form select {
+            min-width: 130px;
+            padding: 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 32px;
+            color: #64748b;
+        }
+
+        .badge {
+            display: inline-block;
+            border-radius: 20px;
+            background: #e2e8f0;
+            padding: 5px 9px;
+            font-size: 12px;
+        }
+
+        @media (max-width: 650px) {
+            .top {
+                align-items: flex-start;
+                flex-direction: column;
+                padding: 16px;
+            }
+
+            main {
+                padding: 12px;
+            }
+        }
+    </style>
 </head>
+
 <body>
-<header class="top"><div><h1>Delivery Management</h1><div class="muted">Manage customer delivery addresses, tracking references, dispatch dates and delivery notes.</div></div><div class="muted">Signed in as <strong><%= admin.username %></strong><br><a href="/admin">Back to dashboard</a></div></header>
-<main>
-  <nav class="links"><a href="/admin/orders">Orders</a><a href="/admin/customers">Customers</a><a href="/admin/services">Cap services</a><a href="/admin/payments">Payments</a><a href="/admin/revenue">Revenue</a></nav>
-  <% if (message) { %><div class="notice"><%= message %></div><% } %>
-  <% if (error) { %><div class="error"><%= error %></div><% } %>
-  <div class="tablewrap"><table>
-    <thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Order status</th><th>Update status</th><th>Delivery details</th></tr></thead>
-    <tbody>
-    <% if (!orders.length) { %><tr><td class="empty" colspan="6">No active delivery orders were found. Paid orders will appear here after a successful verified checkout.</td></tr><% } %>
-    <% orders.forEach(order => { %>
-      <tr>
-        <td><strong><%= order.order_reference %></strong><br><span class="muted">Placed: <%= order.created_at ? new Date(order.created_at).toLocaleString('en-NG') : '—' %></span></td>
-        <td><strong><%= order.customer_name %></strong><br><%= order.customer_email %><br><%= order.customer_phone || 'No phone recorded' %></td>
-        <td><strong><%= order.currency || 'NGN' %> <%= Number(order.total_amount || 0).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2}) %></strong></td>
-        <td><span class="badge"><%= order.order_status %></span></td>
-        <td><form class="status-form" method="POST" action="/admin/deliveries/<%= encodeURIComponent(String(order.id)) %>/status"><select name="status" required><% ['pending','paid','processing','shipped','delivered','cancelled','refunded'].forEach(status => { %><option value="<%= status %>" <%= String(order.order_status) === status ? 'selected' : '' %>><%= status %></option><% }) %></select><button type="submit">Update</button></form></td>
-        <td><form class="delivery-form" method="POST" action="/admin/deliveries/<%= encodeURIComponent(String(order.id)) %>/details">
-          <label>Delivery address<textarea name="delivery_address" maxlength="2000" placeholder="Full delivery address"><%= order.delivery_address || '' %></textarea></label>
-          <label>Delivery type<select name="delivery_option"><option value="standard" <%= order.delivery_option === 'standard' ? 'selected' : '' %>>Standard</option><option value="express" <%= order.delivery_option === 'express' ? 'selected' : '' %>>Express</option></select></label>
-          <label>Tracking number<input name="tracking_number" maxlength="100" value="<%= order.tracking_number || '' %>" placeholder="e.g. CC-TRACK-0001"></label>
-          <label>Dispatch date<input type="datetime-local" name="dispatch_date" value="<%= order.dispatch_date ? new Date(order.dispatch_date).toISOString().slice(0,16) : '' %>"></label>
-          <label>Delivered date/time<input type="datetime-local" name="delivered_at" value="<%= order.delivered_at ? new Date(order.delivered_at).toISOString().slice(0,16) : '' %>"></label>
-          <label>Delivery notes<textarea name="delivery_notes" maxlength="2000" placeholder="Driver details or delivery instructions"><%= order.delivery_notes || '' %></textarea></label>
-          <button type="submit">Save delivery details</button>
-        </form></td>
-      </tr>
-    <% }) %>
-    </tbody>
-  </table></div>
-</main>
-</body></html>
+
+    <header class="top">
+        <div>
+            <h1>Delivery Management</h1>
+            <div class="muted">
+                Manage customer delivery addresses, tracking references,
+                dispatch dates and delivery notes.
+            </div>
+        </div>
+
+        <div class="muted">
+            Signed in as <strong><%= admin.username %></strong>
+            <br>
+            <a href="/admin">Back to dashboard</a>
+        </div>
+    </header>
+
+    <main>
+
+        <nav class="links">
+            <a href="/admin/orders">Orders</a>
+            <a href="/admin/customers">Customers</a>
+            <a href="/admin/services">Cap services</a>
+            <a href="/admin/payments">Payments</a>
+            <a href="/admin/revenue">Revenue</a>
+        </nav>
+
+        <% if (message) { %>
+            <div class="notice"><%= message %></div>
+        <% } %>
+
+        <% if (error) { %>
+            <div class="error"><%= error %></div>
+        <% } %>
+
+        <div class="tablewrap">
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Order</th>
+                        <th>Customer</th>
+                        <th>Total</th>
+                        <th>Order status</th>
+                        <th>Update status</th>
+                        <th>Delivery details</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    <% if (!orders.length) { %>
+                        <tr>
+                            <td class="empty" colspan="6">
+                                No active delivery orders were found.
+                                Paid orders will appear here after a successful verified checkout.
+                            </td>
+                        </tr>
+                    <% } %>
+
+                    <% orders.forEach(order => { %>
+
+                        <tr>
+
+                            <td>
+                                <strong><%= order.order_reference %></strong>
+                                <br>
+                                <span class="muted">
+                                    Placed:
+                                    <%= order.created_at
+                                        ? new Date(order.created_at).toLocaleString('en-NG')
+                                        : '—' %>
+                                </span>
+                            </td>
+
+                            <td>
+                                <strong><%= order.customer_name %></strong>
+                                <br>
+                                <%= order.customer_email %>
+                                <br>
+                                <%= order.customer_phone || 'No phone recorded' %>
+                            </td>
+
+                            <td>
+                                <strong>
+                                    <%= order.currency || 'NGN' %>
+                                    <%= Number(order.total_amount || 0).toLocaleString(
+                                        'en-NG',
+                                        {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2
+                                        }
+                                    ) %>
+                                </strong>
+                            </td>
+
+                            <td>
+                                <span class="badge">
+                                    <%= order.order_status %>
+                                </span>
+                            </td>
+
+                            <!-- Update order status -->
+                            <td>
+                                <form
+                                    class="status-form"
+                                    method="POST"
+                                    action="/admin/deliveries/<%= encodeURIComponent(String(order.id)) %>/status"
+                                >
+
+                                    <input
+                                        type="hidden"
+                                        name="_csrf"
+                                        value="<%= csrfToken %>"
+                                    >
+
+                                    <select name="status" required>
+                                        <% [
+                                            'pending',
+                                            'paid',
+                                            'processing',
+                                            'shipped',
+                                            'delivered',
+                                            'cancelled',
+                                            'refunded'
+                                        ].forEach(status => { %>
+
+                                            <option
+                                                value="<%= status %>"
+                                                <%= String(order.order_status) === status ? 'selected' : '' %>
+                                            >
+                                                <%= status %>
+                                            </option>
+
+                                        <% }); %>
+                                    </select>
+
+                                    <button type="submit">Update</button>
+
+                                </form>
+                            </td>
+
+                            <!-- Update delivery details -->
+                            <td>
+                                <form
+                                    class="delivery-form"
+                                    method="POST"
+                                    action="/admin/deliveries/<%= encodeURIComponent(String(order.id)) %>/details"
+                                >
+
+                                    <input
+                                        type="hidden"
+                                        name="_csrf"
+                                        value="<%= csrfToken %>"
+                                    >
+
+                                    <label>
+                                        Delivery address
+                                        <textarea
+                                            name="delivery_address"
+                                            maxlength="2000"
+                                            placeholder="Full delivery address"
+                                        ><%= order.delivery_address || '' %></textarea>
+                                    </label>
+
+                                    <label>
+                                        Delivery type
+                                        <select name="delivery_option">
+                                            <option
+                                                value="standard"
+                                                <%= order.delivery_option === 'standard' ? 'selected' : '' %>
+                                            >
+                                                Standard
+                                            </option>
+
+                                            <option
+                                                value="express"
+                                                <%= order.delivery_option === 'express' ? 'selected' : '' %>
+                                            >
+                                                Express
+                                            </option>
+                                        </select>
+                                    </label>
+
+                                    <label>
+                                        Tracking number
+                                        <input
+                                            name="tracking_number"
+                                            maxlength="100"
+                                            value="<%= order.tracking_number || '' %>"
+                                            placeholder="e.g. CC-TRACK-0001"
+                                        >
+                                    </label>
+
+                                    <label>
+                                        Dispatch date
+                                        <input
+                                            type="datetime-local"
+                                            name="dispatch_date"
+                                            value="<%= order.dispatch_date
+                                                ? new Date(order.dispatch_date).toISOString().slice(0, 16)
+                                                : '' %>"
+                                        >
+                                    </label>
+
+                                    <label>
+                                        Delivered date/time
+                                        <input
+                                            type="datetime-local"
+                                            name="delivered_at"
+                                            value="<%= order.delivered_at
+                                                ? new Date(order.delivered_at).toISOString().slice(0, 16)
+                                                : '' %>"
+                                        >
+                                    </label>
+
+                                    <label>
+                                        Delivery notes
+                                        <textarea
+                                            name="delivery_notes"
+                                            maxlength="2000"
+                                            placeholder="Driver details or delivery instructions"
+                                        ><%= order.delivery_notes || '' %></textarea>
+                                    </label>
+
+                                    <button type="submit">
+                                        Save delivery details
+                                    </button>
+
+                                </form>
+                            </td>
+
+                        </tr>
+
+                    <% }); %>
+
+                </tbody>
+            </table>
+        </div>
+
+    </main>
+
+</body>
+</html>

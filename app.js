@@ -80,10 +80,19 @@ app.get('/check-session', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send('Something went wrong!');
-});
+    console.error(err.stack);
 
+    // Handle CSRF errors separately
+    if (
+        err.code === 'EBADCSRFTOKEN' ||
+        err.name === 'ForbiddenError'
+    ) {
+        return res.status(403).send('Forbidden: Invalid or missing security token.');
+    }
+
+    // Handle other errors
+    return res.status(500).send('Something went wrong!');
+});
 // Server start
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running at http://localhost:${PORT}`);

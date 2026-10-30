@@ -423,6 +423,7 @@
             <h2>Add New Product</h2>
 
             <form action="/admin/products" method="POST" id="addProductForm">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <div class="form-grid">
                     <div class="field">
                         <label for="new_product_code">Product Code</label>
@@ -676,6 +677,7 @@
                                                             method="POST"
                                                             onsubmit="return confirm('Are you sure you want to change this product’s active status?')"
                                                         >
+                                                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                                             <% if (Number(product.is_active) === 1) { %>
                                                                 <button
                                                                     type="submit"
@@ -721,6 +723,7 @@
 
         <div class="modal-body">
             <form action="#" method="POST" id="editForm">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <div class="form-grid">
                     <div class="field">
                         <label for="edit_product_code">Product Code</label>
@@ -834,6 +837,7 @@
 
     <div class="modal-body">
         <form id="stockForm" method="POST">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <div class="form-grid">
                 <div class="field field-full">
                     <label for="stockProductName">Product</label>

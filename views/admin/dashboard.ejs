@@ -409,7 +409,93 @@
     }
 }
 
+/* Additional mobile responsiveness improvements */
 
+.sidebar nav .nav-label {
+    grid-column: 1 / -1;
+}
+
+.sidebar a {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+}
+
+.inventory-table-wrap {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+}
+
+@media (max-width: 760px) {
+    .sidebar {
+        padding: 18px 14px;
+    }
+
+    .sidebar nav {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: stretch;
+    }
+
+    .topbar {
+        gap: 10px;
+    }
+
+    .welcome h2 {
+        font-size: 22px;
+    }
+
+    .stats,
+    .management-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .stat-card,
+    .management-card {
+        padding: 16px;
+        min-width: 0;
+    }
+
+    .stat-number {
+        font-size: 25px;
+    }
+}
+
+@media (max-width: 480px) {
+    .sidebar nav {
+        grid-template-columns: 1fr;
+    }
+
+    .stats,
+    .management-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .topbar {
+        padding: 16px;
+    }
+
+    .content {
+        padding: 18px 12px;
+    }
+
+    .inventory-heading {
+        padding: 16px;
+    }
+
+    .inventory-empty {
+        align-items: flex-start;
+        padding: 18px;
+    }
+
+    .section-title {
+        margin-top: 24px;
+    }
+
+    .footer {
+        padding: 20px 12px;
+    }
+}
 
     </style>
 </head>

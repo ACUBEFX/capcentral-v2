@@ -5,8 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Categories | CapCentral</title>
+
     <style>
-        * { box-sizing: border-box; }
+        * {
+            box-sizing: border-box;
+        }
 
         body {
             margin: 0;
@@ -56,7 +59,7 @@
 
         .button-delete:hover {
             background: #b91c1c;
-}
+        }
 
         .panel {
             padding: 22px;
@@ -85,7 +88,9 @@
             border-radius: 6px;
         }
 
-        .table-wrap { overflow-x: auto; }
+        .table-wrap {
+            overflow-x: auto;
+        }
 
         table {
             width: 100%;
@@ -99,7 +104,9 @@
             vertical-align: middle;
         }
 
-        th { background: #f8fafc; }
+        th {
+            background: #f8fafc;
+        }
 
         .status {
             display: inline-block;
@@ -108,31 +115,54 @@
             font-size: 12px;
         }
 
-        .visible { background: #dcfce7; color: #166534; }
-        .hidden { background: #fee2e2; color: #991b1b; }
+        .visible {
+            background: #dcfce7;
+            color: #166534;
+        }
 
-        .muted { color: #666; font-size: 13px; }
+        .hidden {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .muted {
+            color: #666;
+            font-size: 13px;
+        }
 
         @media (max-width: 600px) {
-            body { padding: 14px; }
-            .panel { padding: 14px; }
+            body {
+                padding: 14px;
+            }
+
+            .panel {
+                padding: 14px;
+            }
         }
     </style>
 </head>
+
 <body>
     <main class="container">
+
         <header class="header">
             <div>
                 <h1>Categories</h1>
-                <p class="muted">Create categories and control their customer visibility.</p>
+                <p class="muted">
+                    Create categories and control their customer visibility.
+                </p>
             </div>
+
             <a href="/admin" class="button">Back to Dashboard</a>
         </header>
 
+        <!-- Add Category -->
         <section class="panel">
             <h2>Add Category</h2>
 
             <form action="/admin/categories" method="POST">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
                 <div class="form-grid">
                     <div>
                         <label for="name">Category Name</label>
@@ -163,6 +193,7 @@
             </form>
         </section>
 
+        <!-- Existing Categories -->
         <section class="panel">
             <h2>Existing Categories</h2>
 
@@ -176,33 +207,41 @@
                             <th>Action</th>
                         </tr>
                     </thead>
+
                     <tbody>
                         <% if (!categories || categories.length === 0) { %>
                             <tr>
                                 <td colspan="4">No categories found.</td>
                             </tr>
                         <% } else { %>
+
                             <% categories.forEach(category => { %>
                                 <tr>
                                     <td>
                                         <strong><%= category.name %></strong>
                                         <div class="muted"><%= category.slug %></div>
                                     </td>
+
                                     <td>
                                         <%= category.template === 'size-select'
                                             ? 'Size selection'
                                             : 'Standard' %>
                                     </td>
+
                                     <td>
                                         <span class="status <%= category.is_visible ? 'visible' : 'hidden' %>">
                                             <%= category.is_visible ? 'Visible' : 'Hidden' %>
                                         </span>
                                     </td>
-                                                                        <td>
+
+                                    <td>
+                                        <!-- Toggle Category Visibility -->
                                         <form
                                             action="/admin/categories/<%= category.id %>/toggle"
                                             method="POST"
                                         >
+                                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
                                             <button class="button" type="submit">
                                                 <%= category.is_visible
                                                     ? 'Hide from customers'
@@ -210,10 +249,14 @@
                                             </button>
                                         </form>
 
+                                        <!-- Delete Category -->
                                         <form
                                             action="/admin/categories/<%= category.id %>/delete"
                                             method="POST"
-                                            onsubmit="return confirm('Move this category to Deleted Categories? Its products will be kept.');"                                        >
+                                            onsubmit="return confirm('Move this category to Deleted Categories? Its products will be kept.');"
+                                        >
+                                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
                                             <button class="button-delete" type="submit">
                                                 Delete Category
                                             </button>
@@ -221,15 +264,17 @@
                                     </td>
                                 </tr>
                             <% }); %>
+
                         <% } %>
                     </tbody>
                 </table>
             </div>
-        
         </section>
 
+        <!-- Deleted Categories -->
         <section class="panel">
             <h2>Deleted Categories</h2>
+
             <p class="muted">
                 Deleted categories are kept here so you can restore them.
                 Their products are not deleted.
@@ -245,34 +290,42 @@
                             <th>Action</th>
                         </tr>
                     </thead>
+
                     <tbody>
                         <% if (!deletedCategories || deletedCategories.length === 0) { %>
                             <tr>
                                 <td colspan="4">No deleted categories.</td>
                             </tr>
                         <% } else { %>
+
                             <% deletedCategories.forEach(category => { %>
                                 <tr>
                                     <td>
                                         <strong><%= category.name %></strong>
                                         <div class="muted"><%= category.slug %></div>
                                     </td>
+
                                     <td>
                                         <%= category.template === 'size-select'
                                             ? 'Size selection'
                                             : 'Standard' %>
                                     </td>
+
                                     <td>
                                         <span class="status <%= category.is_visible ? 'visible' : 'hidden' %>">
                                             <%= category.is_visible ? 'Visible' : 'Hidden' %>
                                         </span>
                                     </td>
+
                                     <td>
+                                        <!-- Restore Category -->
                                         <form
                                             action="/admin/categories/<%= category.id %>/restore"
                                             method="POST"
                                             onsubmit="return confirm('Restore this category?');"
                                         >
+                                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
                                             <button class="button" type="submit">
                                                 Restore Category
                                             </button>
@@ -280,12 +333,13 @@
                                     </td>
                                 </tr>
                             <% }); %>
+
                         <% } %>
                     </tbody>
                 </table>
             </div>
         </section>
+
     </main>
 </body>
 </html>
-

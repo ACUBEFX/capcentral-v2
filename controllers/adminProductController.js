@@ -12,6 +12,42 @@ const validCapTypes = [
     'Tonak'
 ];
 
+// Validate product input before database operations.
+const isValidProductText = (value, maxLength) => {
+    return (
+        typeof value === 'string' &&
+        value.trim().length > 0 &&
+        value.trim().length <= maxLength
+    );
+};
+
+const isValidOptionalText = (value, maxLength) => {
+    return (
+        value === undefined ||
+        value === null ||
+        (
+            typeof value === 'string' &&
+            value.length <= maxLength
+        )
+    );
+};
+
+const isValidProductPrice = value => {
+    const priceText = String(value ?? '').trim();
+
+    if (!/^\d+(\.\d{1,2})?$/.test(priceText)) {
+        return false;
+    }
+
+    const amount = Number(priceText);
+
+    return (
+        Number.isFinite(amount) &&
+        amount >= 0 &&
+        amount <= 99999999.99
+    );
+};
+
 // Check that the category exists in the database.
 async function categoryExists(connection, category) {
     const [rows] = await connection.query(
@@ -89,20 +125,20 @@ exports.addProduct = async (req, res) => {
                 : Number(stock_quantity)
         );
 
-    if (
-        !productCode ||
-        !productName ||
-        !categoryName ||
-        categoryName.length > 100 ||
-        !Number.isFinite(productPrice) ||
-        productPrice < 0 ||
-        (categoryName === 'Caps' && !validCapTypes.includes(capType)) ||
-        !Number.isInteger(quantity) ||
-        quantity < 0 ||
-        quantity > 4294967295
-    ) {
-        return res.status(400).send('Please enter valid product details.');
-    }
+   if (
+    !isValidProductText(productCode, 100) ||
+    !isValidProductText(productName, 255) ||
+    !isValidProductText(categoryName, 100) ||
+    !isValidProductPrice(price) ||
+    !Number.isInteger(quantity) ||
+    quantity < 0 ||
+    quantity > 4294967295 ||
+    !isValidOptionalText(description, 65535) ||
+    !isValidOptionalText(image_url, 500) ||
+    (categoryName === 'Caps' && !validCapTypes.includes(capType))
+) {
+    return res.status(400).send('Please enter valid product details.');
+}
 
     let connection;
 
@@ -461,24 +497,23 @@ exports.updateProduct = async (req, res) => {
         : null;
 
     if (
-        !Number.isInteger(productId) ||
-        productId < 1 ||
-        !productCode ||
-        !productName ||
-        !categoryName ||
-        categoryName.length > 100 ||
-        (categoryName === 'Caps' && !validCapTypes.includes(capType)) ||
-        !Number.isFinite(productPrice) ||
-        productPrice < 0 ||
-        stock_quantity === undefined ||
-        stock_quantity === '' ||
-        !Number.isInteger(newQuantity) ||
-        newQuantity < 0 ||
-        newQuantity > 4294967295
-    ) {
-        return res.status(400).send('Please enter valid product details.');
-    }
-
+    !Number.isInteger(productId) ||
+    productId < 1 ||
+    !isValidProductText(productCode, 100) ||
+    !isValidProductText(productName, 255) ||
+    !isValidProductText(categoryName, 100) ||
+    !isValidProductPrice(price) ||
+    !Number.isInteger(newQuantity) ||
+    stock_quantity === undefined ||
+    stock_quantity === '' ||
+    newQuantity < 0 ||
+    newQuantity > 4294967295 ||
+    !isValidOptionalText(description, 65535) ||
+    !isValidOptionalText(image_url, 500) ||
+    (categoryName === 'Caps' && !validCapTypes.includes(capType))
+) {
+    return res.status(400).send('Please enter valid product details.');
+}
     let connection;
 
     try {

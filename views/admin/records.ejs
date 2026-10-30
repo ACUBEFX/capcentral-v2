@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -30,11 +31,11 @@
   </header>
   <main>
     <nav class="backlinks" aria-label="Admin record pages">
-      <a href="/admin/orders">Orders</a><span>·</span>
-      <a href="/admin/deliveries">Deliveries</a><span>·</span>
-      <a href="/admin/customers">Customers</a><span>·</span>
-      <a href="/admin/payments">Successful payments</a><span>·</span>
-      <a href="/admin/services">Cap services</a><span>·</span>
+      <a href="/admin/orders">Orders</a><span>Â·</span>
+      <a href="/admin/deliveries">Deliveries</a><span>Â·</span>
+      <a href="/admin/customers">Customers</a><span>Â·</span>
+      <a href="/admin/payments">Successful payments</a><span>Â·</span>
+      <a href="/admin/services">Cap services</a><span>Â·</span>
       <a href="/admin/revenue">Recorded revenue</a>
     </nav>
     <% if (message) { %><div class="notice"><%= message %></div><% } %>
@@ -43,7 +44,7 @@
     <% if (totalRevenue !== null) { %>
       <section class="summary">
         <div class="muted">Total from successful payment records</div>
-        <div class="total">₦<%= Number(totalRevenue).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2}) %></div>
+        <div class="total">â‚¦<%= Number(totalRevenue).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2}) %></div>
         <div class="muted"><%= records.length.toLocaleString() %> successful payment record(s)</div>
       </section>
     <% } %>
@@ -56,10 +57,11 @@
           <% } else { %>
             <% records.forEach(record => { %>
               <tr>
-                <% columns.forEach(column => { let value = record[column.key]; if (value instanceof Date) value = value.toLocaleString('en-NG'); else if (value !== null && typeof value === 'object') value = JSON.stringify(value); else if (value === null || value === undefined || value === '') value = '—'; else value = String(value); %><td><%= value %></td><% }); %>
+                <% columns.forEach(column => { let value = record[column.key]; if (value instanceof Date) value = value.toLocaleString('en-NG'); else if (value !== null && typeof value === 'object') value = JSON.stringify(value); else if (value === null || value === undefined || value === '') value = 'â€”'; else value = String(value); %><td><%= value %></td><% }); %>
                 <% if (statusEditor) { const recordId = record[statusEditor.primaryKey]; const currentStatus = String(record[statusEditor.statusColumn] || ''); %>
                   <td class="status-cell">
                     <form class="status-form" method="POST" action="<%= statusEditor.actionPath %>/<%= encodeURIComponent(String(recordId)) %>/status">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                       <select name="status" aria-label="New status for record <%= recordId %>" required>
                         <% statusEditor.allowedStatuses.forEach(statusOption => { %>
                           <option value="<%= statusOption %>" <%= statusOption === currentStatus ? 'selected' : '' %>><%= statusOption.replace(/[-_]/g, ' ').replace(/\b\w/g, char => char.toUpperCase()) %></option>
