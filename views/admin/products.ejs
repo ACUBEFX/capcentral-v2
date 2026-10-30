@@ -402,7 +402,10 @@
         <header class="page-header">
             <div>
                 <h1>Product Management</h1>
-                <p class="subtitle">
+                <a href="/admin/inventory-history" class="button button-secondary">
+                    View Inventory History
+                </a>
+                                <p class="subtitle">
                     Add products, manage inventory, edit product details, and organise products by category.
                 </p>
             </div>
@@ -483,12 +486,14 @@
                         <label for="new_cap_type">Cap Type</label>
                         <select id="new_cap_type" name="cap_type">
                             <option value="">Select cap type</option>
-                            <option value="Fitted">Fitted</option>
-                            <option value="Snapback">Snapback</option>
-                            <option value="Trucker">Trucker</option>
-                            <option value="Baseball">Baseball</option>
-                            <option value="Dad Hat">Dad Hat</option>
-                            <option value="Other">Other</option>
+                            <option value="Zanna Bukar">Zanna Bukar</option>
+                            <option value="Bongol">Bongol</option>
+                            <option value="Atiku">Atiku</option>
+                            <option value="Tinubu/Fila">Tinubu/Fila</option>
+                            <option value="Miyaram">Miyaram</option>
+                            <option value="Kindea">Kindea</option>
+                            <option value="Tangaran">Tangaran</option>
+                            <option value="Tonak">Tonak</option>
                         </select>
                         <p class="help-text">
                             Cap products use the existing one-off stock handling.
@@ -640,7 +645,16 @@
 
                                                 <td>
                                                     <div class="actions">
-                                                        <button
+                                                                                                                <button
+                                                            type="button"
+                                                            class="button button-secondary button-small stock-button"
+                                                            data-id="<%= product.id %>"
+                                                            data-name="<%= product.name || '' %>"
+                                                            data-stock="<%= product.stock_quantity ?? 0 %>"
+                                                        >
+                                                            Adjust Stock
+                                                        </button>
+                                                                                                                <button
                                                             type="button"
                                                             class="button button-small edit-button"
                                                             data-id="<%= product.id %>"
@@ -768,12 +782,14 @@
                         <label for="edit_cap_type">Cap Type</label>
                         <select id="edit_cap_type" name="cap_type">
                             <option value="">Select cap type</option>
-                            <option value="Fitted">Fitted</option>
-                            <option value="Snapback">Snapback</option>
-                            <option value="Trucker">Trucker</option>
-                            <option value="Baseball">Baseball</option>
-                            <option value="Dad Hat">Dad Hat</option>
-                            <option value="Other">Other</option>
+                            <option value="Zanna Bukar">Zanna Bukar</option>
+                            <option value="Bongol">Bongol</option>
+                            <option value="Atiku">Atiku</option>
+                            <option value="Tinubu/Fila">Tinubu/Fila</option>
+                            <option value="Miyaram">Miyaram</option>
+                            <option value="Kindea">Kindea</option>
+                            <option value="Tangaran">Tangaran</option>
+                            <option value="Tonak">Tonak</option>
                         </select>
                     </div>
 
@@ -808,6 +824,54 @@
             </form>
         </div>
     </dialog>
+
+    <dialog id="stockModal">
+    <div class="modal-header">
+        <h2>Adjust Product Stock</h2>
+        <button type="button" class="close-button" id="closeStockModal"
+            aria-label="Close stock adjustment">&times;</button>
+    </div>
+
+    <div class="modal-body">
+        <form id="stockForm" method="POST">
+            <div class="form-grid">
+                <div class="field field-full">
+                    <label for="stockProductName">Product</label>
+                    <input type="text" id="stockProductName" readonly>
+                </div>
+
+                <div class="field">
+                    <label for="currentStock">Current Quantity</label>
+                    <input type="number" id="currentStock" readonly>
+                </div>
+
+                <div class="field">
+                    <label for="adjustedStock">New Quantity</label>
+                    <input type="number" id="adjustedStock"
+                        name="stock_quantity" min="0" step="1" required>
+                </div>
+
+                <div class="field field-full">
+                    <label for="stockReason">Reason for Adjustment</label>
+                    <select id="stockReason" name="reason" required>
+                        <option value="">Select reason</option>
+                        <option value="Stock received">Stock received</option>
+                        <option value="Damaged goods">Damaged goods</option>
+                        <option value="Stock correction">Stock correction</option>
+                        <option value="Customer return">Customer return</option>
+                        <option value="Manual adjustment">Manual adjustment</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="submit" class="button">Save Stock Adjustment</button>
+                <button type="button" class="button button-secondary"
+                    id="cancelStockModal">Cancel</button>
+            </div>
+        </form>
+    </div>
+</dialog>
 
     <script>
         const modal = document.getElementById('editModal');
@@ -945,6 +1009,52 @@
             .addEventListener('click', () => {
                 setTimeout(updateNewStockVisibility, 0);
             });
+
+
+
+                    // Stock adjustment dialog
+        const stockModal = document.getElementById('stockModal');
+        const stockForm = document.getElementById('stockForm');
+
+        document.querySelectorAll('.stock-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const productId = button.dataset.id;
+
+                stockForm.action =
+                    '/admin/products/' + encodeURIComponent(productId) + '/stock';
+
+                document.getElementById('stockProductName').value =
+                    button.dataset.name || '';
+
+                document.getElementById('currentStock').value =
+                    button.dataset.stock || '0';
+
+                document.getElementById('adjustedStock').value =
+                    button.dataset.stock || '0';
+
+                document.getElementById('stockReason').value = '';
+
+                stockModal.showModal();
+            });
+        });
+
+        function closeStockModal() {
+            if (stockModal.open) {
+                stockModal.close();
+            }
+        }
+
+        document.getElementById('closeStockModal')
+            .addEventListener('click', closeStockModal);
+
+        document.getElementById('cancelStockModal')
+            .addEventListener('click', closeStockModal);
+
+        stockModal.addEventListener('click', event => {
+            if (event.target === stockModal) {
+                closeStockModal();
+            }
+        });
     </script>
 </body>
 </html>

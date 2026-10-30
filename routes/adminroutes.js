@@ -34,6 +34,7 @@ router.post('/admin/categories/:id/toggle', requireAdmin, categoryController.tog
 router.post('/admin/categories/:id/delete', requireAdmin, categoryController.deleteCategory);
 router.post('/admin/categories/:id/restore', requireAdmin, categoryController.restoreCategory);
 router.get('/admin/products', requireAdmin, adminProductController.listProducts);
+router.get('/admin/inventory-history', requireAdmin, adminProductController.inventoryHistory);
 router.post('/admin/products', requireAdmin, adminProductController.addProduct);
 router.post('/admin/products/:id/edit', requireAdmin, adminProductController.updateProduct);
 router.post('/admin/products/:id/toggle', requireAdmin, adminProductController.toggleProduct);

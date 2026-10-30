@@ -269,11 +269,21 @@ exports.toggleProduct = async (req, res) => {
     }
 };
 
+
 // Update a product's stock quantity.
 exports.updateStock = async (req, res) => {
     const productId = Number(req.params.id);
     const rawQuantity = req.body.stock_quantity;
     const newQuantity = Number(rawQuantity);
+    const reason = String(req.body.reason || '').trim();
+
+    const allowedReasons = [
+        'Stock received',
+        'Damaged goods',
+        'Stock correction',
+        'Customer return',
+        'Manual adjustment'
+    ];
 
     if (
         !Number.isInteger(productId) ||
@@ -287,6 +297,10 @@ exports.updateStock = async (req, res) => {
         return res.status(400).send('Please enter a valid stock quantity.');
     }
 
+    if (!allowedReasons.includes(reason)) {
+        return res.status(400).send('Please select a valid stock adjustment reason.');
+    }
+
     let connection;
 
     try {
@@ -294,7 +308,7 @@ exports.updateStock = async (req, res) => {
         await connection.beginTransaction();
 
         const [products] = await connection.query(
-            `SELECT id, product_code, name, stock_quantity
+            `SELECT id, product_code, name, category, stock_quantity
              FROM products
              WHERE id = ?
              FOR UPDATE`,
@@ -308,14 +322,26 @@ exports.updateStock = async (req, res) => {
 
         const product = products[0];
         const previousQuantity = Number(product.stock_quantity);
+
+        // Caps are one-off products: stock can only be 0 or 1.
+        if (
+            String(product.category || '').trim().toLowerCase() === 'caps' &&
+            newQuantity > 1
+        ) {
+            await connection.rollback();
+            return res.status(400).send(
+                'Caps are one-off products. Stock quantity cannot exceed 1.'
+            );
+        }
+
         const changeQuantity = newQuantity - previousQuantity;
 
-        await connection.query(
-            'UPDATE products SET stock_quantity = ? WHERE id = ?',
-            [newQuantity, productId]
-        );
-
         if (changeQuantity !== 0) {
+            await connection.query(
+                'UPDATE products SET stock_quantity = ? WHERE id = ?',
+                [newQuantity, productId]
+            );
+
             await connection.query(
                 `INSERT INTO stock_movements
                     (product_code, change_quantity, previous_quantity,
@@ -326,7 +352,7 @@ exports.updateStock = async (req, res) => {
                     changeQuantity,
                     previousQuantity,
                     newQuantity,
-                    'Admin stock adjustment',
+                    reason,
                     req.admin.id
                 ]
             );
@@ -345,7 +371,9 @@ exports.updateStock = async (req, res) => {
                 JSON.stringify({
                     product_name: product.name,
                     previous_quantity: previousQuantity,
-                    new_quantity: newQuantity
+                    new_quantity: newQuantity,
+                    change_quantity: changeQuantity,
+                    reason
                 }),
                 req.ip
             ]
@@ -353,6 +381,7 @@ exports.updateStock = async (req, res) => {
 
         await connection.commit();
         return res.redirect('/admin/products');
+
     } catch (error) {
         if (connection) {
             await connection.rollback().catch(() => {});
@@ -360,12 +389,51 @@ exports.updateStock = async (req, res) => {
 
         console.error('Error updating stock:', error);
         return res.status(500).send('Could not update stock.');
+
     } finally {
         if (connection) {
             connection.release();
         }
     }
 };
+
+
+// Display inventory movement history.
+exports.inventoryHistory = async (req, res) => {
+    try {
+        const [movements] = await db.promise().query(
+            `SELECT
+                sm.id,
+                sm.product_code,
+                COALESCE(p.name, 'Product no longer available') AS product_name,
+                sm.change_quantity,
+                sm.previous_quantity,
+                sm.new_quantity,
+                sm.reason,
+                COALESCE(s.username, 'Unknown admin') AS admin_name,
+                sm.created_at
+             FROM stock_movements sm
+             LEFT JOIN products p
+                ON p.product_code = sm.product_code
+             LEFT JOIN signup s
+                ON s.id = sm.admin_user_id
+             ORDER BY sm.created_at DESC
+             LIMIT 100`
+        );
+
+        res.render('admin/inventory-history', {
+            admin: req.admin,
+            movements
+        });
+
+    } catch (error) {
+        console.error('Error loading inventory history:', error);
+        res.status(500).send('Could not load inventory history.');
+    }
+};
+
+
+
 
 // Edit an existing product's details and stock in one transaction.
 exports.updateProduct = async (req, res) => {

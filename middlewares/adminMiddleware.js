@@ -1,4 +1,3 @@
-
 const db = require('../models/database');
 
 const requireAdmin = (req, res, next) => {
@@ -9,7 +8,7 @@ const requireAdmin = (req, res, next) => {
     const userId = req.session.user.id;
 
     const sql = `
-        SELECT id, username, email, is_admin
+        SELECT id, username, email, is_admin, is_active
         FROM signup
         WHERE id = ?
     `;
@@ -20,13 +19,25 @@ const requireAdmin = (req, res, next) => {
             return res.status(500).send('Server error.');
         }
 
-        if (results.length === 0 || !results[0].is_admin) {
-            return res.status(403).send(
-                'Access denied. Administrator privileges required.'
-            );
+        if (results.length === 0) {
+            req.session.destroy(() => {
+                return res.redirect('/admin/login');
+            });
+            return;
         }
 
-        req.admin = results[0];
+        const user = results[0];
+
+        if (!user.is_admin || !user.is_active) {
+            req.session.destroy(() => {
+                return res.status(403).send(
+                    'Access denied. Your administrator account is inactive or lacks administrator privileges.'
+                );
+            });
+            return;
+        }
+
+        req.admin = user;
         next();
     });
 };
