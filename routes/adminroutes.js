@@ -63,6 +63,8 @@ router.post('/admin/products', requireAdmin, adminProductController.addProduct);
 router.post('/admin/products/:id/edit', requireAdmin, adminProductController.updateProduct);
 router.post('/admin/products/:id/toggle', requireAdmin, adminProductController.toggleProduct);
 router.post('/admin/products/:id/stock', requireAdmin, adminProductController.updateStock);
+router.get('/admin/order-requests', requireAdmin, adminController.orderRequests);
+router.post('/admin/order-requests/:id/review', requireAdmin, adminController.reviewOrderRequest);
 
 
 module.exports = router;

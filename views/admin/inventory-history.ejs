@@ -1,4 +1,4 @@
-
+﻿
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,12 +8,12 @@
 
     <style>
         :root {
-            --primary: #173f35;
-            --accent: #d6b36a;
-            --background: #f4f6f5;
+            --primary: #263449;
+            --accent: #263449;
+            --background: #f4f6f8;
             --surface: #ffffff;
-            --border: #e1e7e3;
-            --muted: #66736d;
+            --border: #e1e5eb;
+            --muted: #667085;
             --success: #18794e;
             --danger: #b42318;
         }
@@ -24,7 +24,7 @@
 
         body {
             margin: 0;
-            padding: 28px;
+            padding: 0;
             background: var(--background);
             color: #24312b;
             font-family: Arial, sans-serif;
@@ -123,7 +123,7 @@
 
         @media (max-width: 600px) {
             body {
-                padding: 16px;
+                padding: 0;
             }
 
             .header {
@@ -143,20 +143,17 @@
     </style>
 </head>
 
-<body>
+<body class="admin-page">
+    <%- include('../partials/admin-shell-start', {
+        admin: admin,
+        adminPageTitle: 'Inventory History',
+        adminActivePage: 'inventory-history'
+    }) %>
     <main class="container">
-        <header class="header">
-            <div>
-                <h1>Inventory History</h1>
-                <p class="subtitle">
-                    Stock adjustments and inventory movement records.
-                </p>
-            </div>
-
-            <a href="/admin/products" class="button">
-                Back to Products
-            </a>
-        </header>
+        <div class="header">
+    <p class="subtitle">Stock adjustments and inventory movement records.</p>
+    <a href="/admin/products" class="button">Back to Products</a>
+</div>
 
         <section class="panel">
             <% if (movements && movements.length > 0) { %>
@@ -224,5 +221,5 @@
             <% } %>
         </section>
     </main>
-</body>
-</html>
+<%- include('../partials/admin-shell-end') %>
+

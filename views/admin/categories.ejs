@@ -1,4 +1,4 @@
-
+﻿
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -142,19 +142,15 @@
     </style>
 </head>
 
-<body>
+<body class="admin-page">
+<%- include('../partials/admin-shell-start', {
+    admin: admin,
+    adminPageTitle: 'Categories',
+    adminActivePage: 'categories'
+}) %>
     <main class="container">
 
-        <header class="header">
-            <div>
-                <h1>Categories</h1>
-                <p class="muted">
-                    Create categories and control their customer visibility.
-                </p>
-            </div>
-
-            <a href="/admin" class="button">Back to Dashboard</a>
-        </header>
+        <p class="muted page-intro">Create categories and control their customer visibility.</p>
 
         <!-- Add Category -->
         <section class="panel">
@@ -341,5 +337,8 @@
         </section>
 
     </main>
-</body>
-</html>
+<%- include('../partials/admin-shell-end') %>
+
+
+
+

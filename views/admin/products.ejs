@@ -1,4 +1,4 @@
- <% const categoryList = categories || []; %>
+﻿ <% const categoryList = categories || []; %>
 <% const productList = products || []; %>
 <% const formatCategoryName = name => name === 'Thobes' ? 'Throbe' : name; %>
 
@@ -397,23 +397,14 @@
     </style>
 </head>
 
-<body>
+<body class="admin-page">
+<%- include('../partials/admin-shell-start', {
+    admin: admin,
+    adminPageTitle: 'Products & Stock',
+    adminActivePage: 'products'
+}) %>
     <main class="page">
-        <header class="page-header">
-            <div>
-                <h1>Product Management</h1>
-                <a href="/admin/inventory-history" class="button button-secondary">
-                    View Inventory History
-                </a>
-                                <p class="subtitle">
-                    Add products, manage inventory, edit product details, and organise products by category.
-                </p>
-            </div>
-
-            <a class="button button-secondary" href="/admin">
-                Back to Dashboard
-            </a>
-        </header>
+        <p class="subtitle">Add products, manage inventory, edit product details, and organise products by category.</p>
 
         <div class="notice">
             Product categories are loaded from your Categories manager. Create a category there first if it does not appear below.
@@ -459,7 +450,7 @@
                         </select>
                     </div>
 
-                    <div class="field">
+                    <div class="field" id="newPriceField">
                         <label for="new_price">Price</label>
                         <input
                             type="number"
@@ -521,6 +512,14 @@
                     </div>
                 </div>
 
+                <div class="field field-full hidden-field" id="newVariantSection">
+                    <h3>Product Sizes, Prices and Stock</h3>
+                    <p class="help-text">
+                        Enter a separate price and available stock quantity for each size.
+                    </p>
+
+                    <div id="newVariantRows"></div>
+                </div>
                 <div class="form-actions">
                     <button type="submit" class="button">Add Product</button>
                     <button type="reset" class="button button-secondary" id="resetAddForm">
@@ -607,7 +606,7 @@
                                                 </td>
 
                                                 <td>
-                                                    <%= product.product_code || '—' %>
+                                                    <%= product.product_code || '-' %>
                                                 </td>
 
                                                 <td>
@@ -633,7 +632,7 @@
                                                 </td>
 
                                                 <td>
-                                                    <%= product.cap_type || '—' %>
+                                                    <%= product.cap_type || '-' %>
                                                 </td>
 
                                                 <td>
@@ -675,7 +674,7 @@
                                                             class="inline-form"
                                                             action="/admin/products/<%= product.id %>/toggle"
                                                             method="POST"
-                                                            onsubmit="return confirm('Are you sure you want to change this product’s active status?')"
+                                                            onsubmit="return confirm('Are you sure you want to change this product's active status?')"
                                                         >
                                                         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                                             <% if (Number(product.is_active) === 1) { %>
@@ -891,56 +890,146 @@
             description: 'edit_description'
         };
 
-        const newCategory = document.getElementById('new_category');
-        const newStockField = document.getElementById('newStockField');
-        const newStock = document.getElementById('new_stock');
-        const newCapTypeField = document.getElementById('newCapTypeField');
-        const newCapType = document.getElementById('new_cap_type');
+      
+const newCategory = document.getElementById('new_category');
+const newPriceField = document.getElementById('newPriceField');
+const newPrice = document.getElementById('new_price');
+const newStockField = document.getElementById('newStockField');
+const newStock = document.getElementById('new_stock');
+const newCapTypeField = document.getElementById('newCapTypeField');
+const newCapType = document.getElementById('new_cap_type');
 
-        const editCategory = document.getElementById('edit_category');
-        const editStockField = document.getElementById('editStockField');
-        const editStock = document.getElementById('edit_stock');
-        const editCapTypeField = document.getElementById('editCapTypeField');
-        const editCapType = document.getElementById('edit_cap_type');
+const editCategory = document.getElementById('edit_category');
+const editStockField = document.getElementById('editStockField');
+const editStock = document.getElementById('edit_stock');
+const editCapTypeField = document.getElementById('editCapTypeField');
+const editCapType = document.getElementById('edit_cap_type');
 
-        function isCapsCategory(categoryName) {
-            return String(categoryName || '').trim().toLowerCase() === 'caps';
+const newVariantSection = document.getElementById('newVariantSection');
+const newVariantRows = document.getElementById('newVariantRows');
+const newCapTypeSelect = document.getElementById('new_cap_type');
+
+function isCapsCategory(categoryName) {
+    return String(categoryName || '').trim().toLowerCase() === 'caps';
+}
+
+function getProductSizes() {
+    const category = String(newCategory.value || '').trim().toLowerCase();
+
+    if (category === 'caps') {
+        if (newCapTypeSelect.value === 'Tonak') {
+            return ['50', '51', '52', '53', '54', '55'];
         }
 
-        function updateNewStockVisibility() {
-            const isCap = isCapsCategory(newCategory.value);
+        return ['22', '22½', '23', '23⅓', '24½', '25'];
+    }
 
-            newStockField.classList.toggle('hidden-field', isCap);
-            newStock.required = !isCap;
+    const sizeOptions = {
+        'abaya': ['50', '52', '54', '56', '58', '60', '62', '64'],
+        'shoes': ['40', '41', '42', '43', '44', '45'],
+        'thobes': ['56', '58', '60', '62'],
+        'perfume': ['15ml', '30ml', '50ml', '100ml']
+    };
 
-            newCapTypeField.classList.toggle('hidden-field', !isCap);
-            newCapType.required = isCap;
+    return sizeOptions[category] || [];
+}
 
-            if (isCap) {
-                newStock.value = '1';
-            } else if (!newStock.value || newStock.value === '1') {
-                newStock.value = '10';
-            }
-        }
+function updateNewStockVisibility() {
+    const hasVariants = getProductSizes().length > 0;
+    const isCap = isCapsCategory(newCategory.value);
 
-        function updateEditStockVisibility() {
-            const isCap = isCapsCategory(editCategory.value);
+    newVariantSection.classList.toggle('hidden-field', !hasVariants);
 
-            editStockField.classList.toggle('hidden-field', isCap);
-            editStock.required = !isCap;
+    newPriceField.classList.toggle('hidden-field', hasVariants);
+    newPrice.required = !hasVariants;
+    newPrice.disabled = hasVariants;
 
-            editCapTypeField.classList.toggle('hidden-field', !isCap);
-            editCapType.required = isCap;
+    newStockField.classList.toggle('hidden-field', hasVariants);
+    newStock.required = !hasVariants;
+    newStock.disabled = hasVariants;
 
-            if (isCap) {
-                editStock.value = '1';
-            }
-        }
+    newCapTypeField.classList.toggle('hidden-field', !isCap);
+    newCapType.required = isCap;
+    newCapType.disabled = !isCap;
 
-        newCategory.addEventListener('change', updateNewStockVisibility);
-        editCategory.addEventListener('change', updateEditStockVisibility);
+    if (!hasVariants && (!newStock.value || newStock.value === '1')) {
+        newStock.value = '10';
+    }
+}
 
-        updateNewStockVisibility();
+function updateEditStockVisibility() {
+    const isCap = isCapsCategory(editCategory.value);
+
+    editStockField.classList.toggle('hidden-field', isCap);
+    editStock.required = !isCap;
+
+    editCapTypeField.classList.toggle('hidden-field', !isCap);
+    editCapType.required = isCap;
+
+    if (isCap) {
+        editStock.value = '1';
+    }
+}
+
+function renderNewVariantRows() {
+    const sizes = getProductSizes();
+
+    newVariantRows.innerHTML = '';
+
+    sizes.forEach(size => {
+        const row = document.createElement('div');
+        row.className = 'form-grid';
+
+        row.innerHTML = `
+            <div class="field">
+                <label>Size</label>
+                <input
+                    type="text"
+                    name="variant_size[]"
+                    value="${size}"
+                    readonly
+                >
+            </div>
+
+            <div class="field">
+                <label>Price (₦)</label>
+                <input
+                    type="number"
+                    name="variant_price[]"
+                    min="0"
+                    step="0.01"
+                    required
+                >
+            </div>
+
+            <div class="field">
+                <label>Stock Quantity</label>
+                <input
+                    type="number"
+                    name="variant_stock[]"
+                    min="0"
+                    step="1"
+                    value="0"
+                    required
+                >
+            </div>
+        `;
+
+        newVariantRows.appendChild(row);
+    });
+
+    updateNewStockVisibility();
+}
+
+newCategory.addEventListener('change', renderNewVariantRows);
+newCapTypeSelect.addEventListener('change', renderNewVariantRows);
+
+editCategory.addEventListener('change', updateEditStockVisibility);
+
+renderNewVariantRows();
+updateEditStockVisibility();
+
+
 
         document.querySelectorAll('.edit-button').forEach(button => {
             button.addEventListener('click', () => {
@@ -1060,5 +1149,4 @@
             }
         });
     </script>
-</body>
-</html>
+<%- include('../partials/admin-shell-end') %>

@@ -1,4 +1,4 @@
-
+﻿
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -182,33 +182,13 @@
     </style>
 </head>
 
-<body>
-
-    <header class="top">
-        <div>
-            <h1>Customer Management</h1>
-            <div class="muted">
-                View, edit, activate, deactivate or delete customer accounts
-                and inspect their order/service history.
-            </div>
-        </div>
-
-        <div>
-            <div class="muted">
-                Signed in as <strong><%= admin.username %></strong>
-            </div>
-            <a href="/admin">Back to dashboard</a>
-        </div>
-    </header>
-
-    <main>
-
-        <nav class="panel">
-            <a href="/admin/orders">Orders</a> ·
-            <a href="/admin/deliveries">Deliveries</a> ·
-            <a href="/admin/services">Cap services</a> ·
-            <a href="/admin/products">Products &amp; stock</a>
-        </nav>
+<body class="admin-page">
+<%- include('../partials/admin-shell-start', {
+    admin: admin,
+    adminPageTitle: 'Customers',
+    adminActivePage: 'customers'
+}) %>
+<main>
 
         <% if (message) { %>
             <div class="notice"><%= message %></div>
@@ -307,17 +287,17 @@
 
                                 <td>
                                     <strong>
-                                        <%= customer.username || '—' %>
+                                        <%= customer.username || 'â€”' %>
                                     </strong>
                                 </td>
 
-                                <td><%= customer.email || '—' %></td>
+                                <td><%= customer.email || 'â€”' %></td>
 
                                 <td>
-                                    <%= customer.phone_number || '—' %>
+                                    <%= customer.phone_number || 'â€”' %>
                                 </td>
 
-                                <td><%= customer.address || '—' %></td>
+                                <td><%= customer.address || 'â€”' %></td>
 
                                 <td>
                                     <span class="pill <%= customer.is_verified ? '' : 'no' %>">
@@ -338,7 +318,7 @@
                                 <td>
                                     <%= customer.created_at
                                         ? new Date(customer.created_at).toLocaleString('en-NG')
-                                        : '—' %>
+                                        : 'â€”' %>
                                 </td>
 
                                 <td>
@@ -420,5 +400,5 @@
 
     </main>
 
-</body>
-</html>
+<%- include('../partials/admin-shell-end') %>
+

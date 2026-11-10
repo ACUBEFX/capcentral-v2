@@ -1,4 +1,4 @@
-
+﻿
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -497,6 +497,76 @@
     }
 }
 
+        .admin-mobile-toggle {
+            display: none;
+        }
+
+        .admin-nav-backdrop {
+            display: none;
+        }
+
+        @media (max-width: 760px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                width: 280px;
+                max-width: 85vw;
+                box-sizing: border-box;
+                z-index: 1001;
+                overflow-y: auto;
+                transform: translateX(-105%);
+                transition: transform 0.25s ease;
+                box-shadow: 8px 0 25px rgba(0,0,0,0.18);
+            }
+
+            .sidebar.admin-sidebar-open {
+                transform: translateX(0);
+            }
+
+            .admin-mobile-toggle {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 42px;
+                height: 42px;
+                background: #263449;
+                color: white;
+                border: 1px solid #4b5563;
+                border-radius: 8px;
+                font-size: 22px;
+                cursor: pointer;
+            }
+
+            .sidebar nav {
+                display: block;
+            }
+
+            .admin-nav-backdrop.admin-backdrop-open {
+                display: block;
+                position: fixed;
+                inset: 0;
+                background: rgba(15, 23, 42, 0.55);
+                z-index: 1000;
+            }
+
+            .topbar {
+                flex-direction: row;
+                align-items: center;
+                padding: 16px;
+            }
+
+            .topbar-heading {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+
+            body.admin-menu-open {
+                overflow: hidden;
+            }
+        }
     </style>
 </head>
 
@@ -506,31 +576,41 @@
     <aside class="sidebar">
         <div class="brand">CapCentral</div>
         <div class="sidebar-subtitle">Store administration</div>
-
-        <nav>
+<nav id="admin-sidebar-nav">
             <div class="nav-label">Main</div>
 
-            <a href="/admin" class="active">▦ Dashboard</a>
-            <a href="/admin/orders">🛒 Orders</a>
-            <a href="/admin/payments">💳 Payments</a>
-            <a href="/admin/deliveries">🚚 Deliveries</a>
+            <a href="/admin" class="active">Dashboard</a>
+            <a href="/admin/orders">Orders</a>
+            <a href="/admin/payments">Payments</a>
+            <a href="/admin/deliveries">Deliveries</a>
+            <a href="/admin/order-requests">Order Requests</a>
 
             <div class="nav-label">Management</div>
 
 
 
 
-            <a href="/admin/products">📦 Products & Stock</a>
-            <a href="/admin/categories">🗂️ Categories</a>
-            <a href="/admin/customers">👥 Customers</a>
-            <a href="/admin/services">🧢 Cap Services</a>
+            <a href="/admin/products">Products & Stock</a>
+            <a href="/admin/categories"> Categories</a>
+            <a href="/admin/customers">Customers</a>
+            <a href="/admin/services">Cap Services</a>
 
         </nav>
     </aside>
 
+    <div class="admin-nav-backdrop" id="admin-nav-backdrop"></div>
     <main class="main">
         <header class="topbar">
-            <h1>Admin Dashboard</h1>
+            <div class="topbar-heading">
+                <button type="button" class="admin-mobile-toggle"
+                        id="admin-mobile-toggle"
+                        aria-expanded="false"
+                        aria-controls="admin-sidebar-nav"
+                        aria-label="Open navigation">
+                    ☰
+                </button>
+                <h1>Admin Dashboard</h1>
+            </div>
 
             <div class="admin-info">
                 Signed in as<br>
@@ -726,13 +806,19 @@
 
             <section class="management-grid">
                 <a class="management-card" href="/admin/orders">
-                    <div class="management-icon">🛒</div>
+                    <div class="management-icon">Orders</div>
                     <h3>Orders</h3>
                     <p>Review customer orders and manage order progress.</p>
                 </a>
 
+                <a class="management-card" href="/admin/order-requests">
+                    <div class="management-icon">Requests</div>
+                    <h3>Order Requests</h3>
+                    <p>Review and approve or reject customer cancellation and refund requests.</p>
+                </a>
+
                 <a class="management-card" href="/admin/payments">
-                    <div class="management-icon">💳</div>
+                    <div class="management-icon">Payments</div>
                     <h3>Payments</h3>
                     <p>Review payment records and transaction statuses.</p>
                 </a>
@@ -744,13 +830,13 @@
                 </a>
 
                 <a class="management-card" href="/admin/deliveries">
-                    <div class="management-icon">🚚</div>
+                    <div class="management-icon">Deliveries</div>
                     <h3>Deliveries</h3>
                     <p>Track deliveries and update delivery progress.</p>
                 </a>
 
                 <a class="management-card" href="/admin/products">
-                    <div class="management-icon">📦</div>
+                    <div class="management-icon">Products</div>
                     <h3>Products & Stock</h3>
                     <p>Manage product details, prices, and available quantities.</p>
                 </a>
@@ -759,18 +845,18 @@
 
 
                 <a class="management-card" href="/admin/categories">
-                    <div class="management-icon">🗂️</div>
+                    <div class="management-icon">Categories</div>
                     <h3>Categories</h3>
                     <p>Add categories, manage their products, and control customer visibility.</p>
                 </a>
                 <a class="management-card" href="/admin/customers">
-                    <div class="management-icon">👥</div>
+                    <div class="management-icon">Customers</div>
                     <h3>Customers</h3>
                     <p>Review customer accounts and contact information.</p>
                 </a>
 
                 <a class="management-card" href="/admin/services">
-                    <div class="management-icon">🧢</div>
+                    <div class="management-icon">Services</div>
                     <h3>Cap Services</h3>
                     <p>Review resizing and laundry service requests.</p>
                 </a>
@@ -804,5 +890,64 @@
         scheduleRefresh();
     })();
 </script> -->
+<script>
+    // Admin mobile navigation - overlay sidebar
+    const adminNavToggle = document.getElementById('admin-mobile-toggle');
+    const adminSidebar = document.querySelector('.sidebar');
+    const adminSidebarNav = document.getElementById('admin-sidebar-nav');
+    const adminNavBackdrop = document.getElementById('admin-nav-backdrop');
+
+    function closeAdminMenu() {
+        if (!adminSidebar || !adminNavToggle || !adminNavBackdrop) return;
+
+        adminSidebar.classList.remove('admin-sidebar-open');
+        adminNavBackdrop.classList.remove('admin-backdrop-open');
+        document.body.classList.remove('admin-menu-open');
+
+        adminNavToggle.setAttribute('aria-expanded', 'false');
+        adminNavToggle.setAttribute('aria-label', 'Open navigation');
+        adminNavToggle.textContent = '☰';
+    }
+
+    if (adminNavToggle && adminSidebar && adminSidebarNav && adminNavBackdrop) {
+        adminNavToggle.addEventListener('click', () => {
+            const isOpen = adminSidebar.classList.contains('admin-sidebar-open');
+
+            if (isOpen) {
+                closeAdminMenu();
+            } else {
+                adminSidebar.classList.add('admin-sidebar-open');
+                adminNavBackdrop.classList.add('admin-backdrop-open');
+                document.body.classList.add('admin-menu-open');
+
+                adminNavToggle.setAttribute('aria-expanded', 'true');
+                adminNavToggle.setAttribute('aria-label', 'Close navigation');
+                adminNavToggle.textContent = '✕';
+            }
+        });
+
+        adminNavBackdrop.addEventListener('click', closeAdminMenu);
+
+        adminSidebarNav.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', closeAdminMenu);
+        });
+
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape') closeAdminMenu();
+        });
+    }
+</script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+

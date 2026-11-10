@@ -1,4 +1,4 @@
-
+﻿
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -193,28 +193,19 @@
     </style>
 </head>
 
-<body>
-
-    <header class="top">
-        <div>
-            <h1>Customer Details</h1>
-            <div class="muted">
-                Account profile, orders and cap service history
-            </div>
-        </div>
-
-        <div>
-            <a href="/admin/customers" class="button secondary">
-                ← All customers
-            </a>
-
-            <a href="/admin" class="button">
-                Dashboard
-            </a>
-        </div>
-    </header>
-
-    <main>
+<body class="admin-page">
+<%- include('../partials/admin-shell-start', {
+    admin: admin,
+    adminPageTitle: 'Customer Details',
+    adminActivePage: 'customers'
+}) %>
+<main>
+    <div style="margin: 0 0 20px;">
+        <a href="/admin/customers"
+           style="display:inline-block; padding:10px 16px; background:#263449; color:#fff; text-decoration:none; border-radius:6px; font-weight:600;">
+            &#8592; Back to Customers
+        </a>
+    </div>
 
         <% if (message) { %>
             <div class="notice"><%= message %></div>
@@ -232,22 +223,22 @@
 
                 <div>
                     <div class="label">Username</div>
-                    <div class="value"><%= customer.username || '—' %></div>
+                    <div class="value"><%= customer.username || 'â€”' %></div>
                 </div>
 
                 <div>
                     <div class="label">Email</div>
-                    <div class="value"><%= customer.email || '—' %></div>
+                    <div class="value"><%= customer.email || 'â€”' %></div>
                 </div>
 
                 <div>
                     <div class="label">Phone</div>
-                    <div class="value"><%= customer.phone_number || '—' %></div>
+                    <div class="value"><%= customer.phone_number || 'â€”' %></div>
                 </div>
 
                 <div>
                     <div class="label">Address</div>
-                    <div class="value"><%= customer.address || '—' %></div>
+                    <div class="value"><%= customer.address || 'â€”' %></div>
                 </div>
 
                 <div>
@@ -269,7 +260,7 @@
                     <div class="value">
                         <%= customer.created_at
                             ? new Date(customer.created_at).toLocaleString('en-NG')
-                            : '—' %>
+                            : 'â€”' %>
                     </div>
                 </div>
 
@@ -381,7 +372,7 @@
                                             <%= value === null ||
                                                 value === undefined ||
                                                 value === ''
-                                                ? '—'
+                                                ? 'â€”'
                                                 : (value instanceof Date
                                                     ? value.toLocaleString('en-NG')
                                                     : String(value)) %>
@@ -443,7 +434,7 @@
                                             <%= value === null ||
                                                 value === undefined ||
                                                 value === ''
-                                                ? '—'
+                                                ? 'â€”'
                                                 : (value instanceof Date
                                                     ? value.toLocaleString('en-NG')
                                                     : String(value)) %>
@@ -461,5 +452,6 @@
 
     </main>
 
-</body>
-</html>
+<%- include('../partials/admin-shell-end') %>
+
+

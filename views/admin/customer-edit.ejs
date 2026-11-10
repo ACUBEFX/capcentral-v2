@@ -1,4 +1,4 @@
-
+﻿
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -119,15 +119,19 @@
     </style>
 </head>
 
-<body>
-
-    <header class="top">
-        <a href="/admin/customers">← Back to customers</a>
-        ·
-        <a href="/admin">Dashboard</a>
-    </header>
-
-    <main>
+<body class="admin-page">
+<%- include('../partials/admin-shell-start', {
+    admin: admin,
+    adminPageTitle: 'Edit Customer',
+    adminActivePage: 'customers'
+}) %>
+<main>
+    <div style="margin: 0 0 20px;">
+        <a href="/admin/customers"
+           style="display:inline-block; padding:10px 16px; background:#263449; color:#fff; text-decoration:none; border-radius:6px; font-weight:600;">
+            &#8592; Back to Customers
+        </a>
+    </div>
         <section class="panel">
 
             <h1>Edit customer</h1>
@@ -209,5 +213,5 @@
         </section>
     </main>
 
-</body>
-</html>
+<%- include('../partials/admin-shell-end') %>
+

@@ -33,7 +33,7 @@ if (paymentSuccessful) {
     cart = [];
 
     console.log(
-        '✅ Payment successful. Cart cleared.'
+        'âœ… Payment successful. Cart cleared.'
     );
 }
 
@@ -177,7 +177,7 @@ function renderCart() {
                     <p class="cart-item-price">
                         Price:
                         <strong>
-                            ₦${item.price.toLocaleString()}
+                            â‚¦${item.price.toLocaleString()}
                         </strong>
                     </p>
 
@@ -223,7 +223,7 @@ function renderCart() {
     cartFooter.innerHTML = `
         <div class="cart-total">
             <strong>Total:</strong>
-            ₦${total.toLocaleString()}
+            â‚¦${total.toLocaleString()}
         </div>
 
         <form
@@ -332,42 +332,73 @@ function removeFromCart(index) {
 // =====================================================
 
 function addToCart(product) {
+    const variantId = product.variantId || product.variant_id || null;
+    const stockQuantity = Number(product.stockQuantity);
 
-    const card = product.productId
-        ? document.querySelector(`.product-card[data-product-id="${CSS.escape(String(product.productId))}"]`)
-        : null;
-    if (card && Number(card.dataset.stockQuantity) <= 0) {
-        alert(String(product.category || card.dataset.category || '').toLowerCase() === 'caps'
-            ? 'This cap has already been sold.'
-            : 'This product is out of stock.');
+    // Check stock for the selected variant or legacy product.
+    if (Number.isFinite(stockQuantity) && stockQuantity <= 0) {
+        alert('This selected size is out of stock.');
         return;
     }
 
-    // Caps are unique items: do not add the same physical cap twice, even if
-    // the customer selects a different size in the modal.
-    const isUniqueCap = String(product.category || '').toLowerCase() === 'caps';
-    const existingItemIndex = cart.findIndex(item =>
-        (isUniqueCap && (String(item.productId || '') === String(product.productId || '') ||
-                         String(item.productCode || '') === String(product.productCode || ''))) ||
-        (!isUniqueCap && item.name === product.name && item.size === product.size)
-    );
+    // Caps without variants retain the old unique-item behaviour.
+    const isUniqueCap =
+        String(product.category || '').toLowerCase() === 'caps' &&
+        !variantId;
+
+    const existingItemIndex = cart.findIndex(item => {
+        if (variantId) {
+            return String(item.variantId || item.variant_id || '') ===
+                String(variantId);
+        }
+
+        if (isUniqueCap) {
+            return (
+                String(item.productId || '') === String(product.productId || '') ||
+                String(item.productCode || '') === String(product.productCode || '')
+            );
+        }
+
+        return (
+            !item.variantId &&
+            !item.variant_id &&
+            item.name === product.name &&
+            item.size === product.size
+        );
+    });
 
     if (existingItemIndex !== -1) {
+        const existingItem = cart[existingItemIndex];
+
         if (isUniqueCap) {
-            alert('This cap is already in your cart. Each cap is a unique item.');
+            alert('This cap is already in your cart.');
             return;
         }
-        cart[existingItemIndex].quantity += 1;
+
+        const availableStock = Number(
+            existingItem.stockQuantity ?? product.stockQuantity
+        );
+
+        if (
+            Number.isFinite(availableStock) &&
+            existingItem.quantity >= availableStock
+        ) {
+            alert('You cannot add more than the available stock.');
+            return;
+        }
+
+        existingItem.quantity += 1;
     } else {
-        cart.push({ ...product, quantity: 1 });
+        cart.push({
+            ...product,
+            variantId,
+            quantity: 1
+        });
     }
 
-
     saveCart();
-
     renderCart();
 }
-
 
 // =====================================================
 // TOGGLE CART UI
@@ -446,6 +477,16 @@ if (cartItems) {
 
 }
 
+// Open cart automatically when requested by a navigation link.
+const openCartOnLoad =
+    new URLSearchParams(window.location.search)
+        .get('openCart') === '1';
+
+if (openCartOnLoad && cartItems) {
+    cartItems.style.display = 'block';
+    renderCart();
+}
+
 
 // =====================================================
 // ADD TO CART VIA MODAL
@@ -459,12 +500,12 @@ if (addToCartButton) {
         if (!modal) return;
 
         const productId = modal.dataset.productId;
-        let productCard = productId
-            ? document.querySelector(`.product-card[data-product-id="${CSS.escape(String(productId))}"]`)
+
+        const productCard = productId
+            ? document.querySelector(
+                `.product-card[data-product-id="${CSS.escape(String(productId))}"]`
+            )
             : null;
-        if (!productCard && modal.dataset.cardIndex !== undefined && modal.dataset.cardIndex !== '') {
-            productCard = document.querySelectorAll('.product-card')[Number(modal.dataset.cardIndex)] || null;
-        }
 
         if (!productCard) {
             alert('This product is no longer available. Please refresh the page.');
@@ -472,9 +513,12 @@ if (addToCartButton) {
             return;
         }
 
-        const productName = productCard.querySelector('.product-name')?.textContent.trim() || '';
-        const productPrice = Number(productCard.dataset.price || productCard.querySelector('.product-price')?.textContent.replace(/[^\d.]/g, '') || 0);
+        const productName =
+            productCard.querySelector('.product-name')?.textContent.trim() || '';
+
         const sizeSelect = modal.querySelector('#modal-size-select');
+        const selectedOption = sizeSelect?.selectedOptions[0];
+
         const productSize = sizeSelect?.value || 'One Size';
 
         if (sizeSelect && !productSize) {
@@ -482,10 +526,17 @@ if (addToCartButton) {
             return;
         }
 
-        if (Number(productCard.dataset.stockQuantity) <= 0) {
-            alert(String(productCard.dataset.category).toLowerCase() === 'caps'
-                ? 'This cap has already been sold.'
-                : 'This product is out of stock.');
+        const variantId = selectedOption?.dataset.variantId || null;
+        const productPrice = variantId
+            ? Number(selectedOption.dataset.price)
+            : Number(productCard.dataset.price || 0);
+
+        const stockQuantity = variantId
+            ? Number(selectedOption.dataset.stock || 0)
+            : Number(productCard.dataset.stockQuantity || 0);
+
+        if (stockQuantity <= 0) {
+            alert('The selected size is out of stock.');
             return;
         }
 
@@ -493,6 +544,8 @@ if (addToCartButton) {
             name: productName,
             price: productPrice,
             size: productSize,
+            variantId,
+            stockQuantity,
             productId: productCard.dataset.productId || null,
             productCode: productCard.dataset.productCode || null,
             category: productCard.dataset.category || inferPageCategory()
@@ -501,30 +554,52 @@ if (addToCartButton) {
         closeModal();
     });
 }
-
 // Keep the original static brand pages working; category pages replace their cards
 // from the database and use their own delegated click handler.
-document.querySelectorAll('.product-card .add-to-cart-button').forEach((button) => {
-    button.addEventListener('click', (event) => {
+document.querySelectorAll('.product-card .add-to-cart-button').forEach(button => {
+    button.addEventListener('click', event => {
         event.preventDefault();
         event.stopPropagation();
+
         const productCard = button.closest('.product-card');
         if (!productCard) return;
 
-        const productName = productCard.querySelector('.product-name')?.textContent.trim() || '';
-        const productPrice = Number(productCard.dataset.price || productCard.querySelector('.product-price')?.textContent.replace(/[^\d.]/g, '') || 0);
+        const productName =
+            productCard.querySelector('.product-name')?.textContent.trim() || '';
+
         const sizeSelect = productCard.querySelector('.product-size select');
-        const productSize = sizeSelect?.value || (inferPageCategory() === 'Hats' ? 'One Size' : '');
+        const selectedOption = sizeSelect?.selectedOptions[0];
+
+        const productSize = sizeSelect?.value ||
+            (inferPageCategory() === 'Hats' ? 'One Size' : '');
 
         if (!productSize) {
             alert('Please select a size before adding to cart.');
             return;
         }
 
+        const variantId = selectedOption?.dataset.variantId || null;
+
+        const price = variantId
+            ? Number(selectedOption.dataset.price)
+            : Number(productCard.dataset.price ||
+                productCard.querySelector('.product-price')?.textContent.replace(/[^\d.]/g, '') || 0);
+
+        const stockQuantity = variantId
+            ? Number(selectedOption.dataset.stock || 0)
+            : Number(productCard.dataset.stockQuantity || 0);
+
+        if (stockQuantity <= 0) {
+            alert('This product or selected size is out of stock.');
+            return;
+        }
+
         addToCart({
             name: productName,
-            price: productPrice,
+            price,
             size: productSize,
+            variantId,
+            stockQuantity,
             productId: productCard.dataset.productId || null,
             productCode: productCard.dataset.productCode || null,
             category: productCard.dataset.category || inferPageCategory()
@@ -569,7 +644,7 @@ function openModal(productOrIndex) {
     const descNode = document.getElementById('modal-product-description');
     const imageNode = document.getElementById('modal-product-image');
     if (nameNode) nameNode.textContent = productName;
-    if (priceNode) priceNode.textContent = `₦${productPrice.toLocaleString('en-NG', { maximumFractionDigits: 2 })}`;
+    if (priceNode) priceNode.textContent = `â‚¦${productPrice.toLocaleString('en-NG', { maximumFractionDigits: 2 })}`;
     if (descNode) descNode.textContent = productDesc;
     if (imageNode) {
         if (productImage) {
