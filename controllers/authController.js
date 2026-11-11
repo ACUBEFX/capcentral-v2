@@ -76,55 +76,70 @@ const verifyEmail = async (req, res) => {
 
 
 const login = async (req, res) => {
-  const { email, password } = req.body;
+    const { email, password } = req.body;
 
-  try {
-    const sql = 'SELECT * FROM signup WHERE email = ?';
-    db.query(sql, [email], async (err, results) => {
-      if (err) {
-        console.error('Database error:', err);
-        return res.status(500).send('Internal server error.');
-      }
+    try {
+        const sql = 'SELECT * FROM signup WHERE email = ?';
 
-      if (results.length === 0) {
-        return res.status(400).send('Email not found.');
-      }
+        db.query(sql, [email], async (err, results) => {
+            if (err) {
+                console.error('Database error:', err);
+                return res.status(500).send('Internal server error.');
+            }
 
-      const user = results[0];
-      const isMatch = await bcrypt.compare(password, user.password);
+            if (results.length === 0) {
+                return res.status(400).send('Email not found.');
+            }
 
-      if (!isMatch) {
-        return res.status(400).send('Incorrect password.');
-      }
+            const user = results[0];
+            const isMatch = await bcrypt.compare(password, user.password);
 
-      if (!user.is_verified) {
-        return res.status(403).send('Please verify your email before logging in.');
-      }
+            if (!isMatch) {
+                return res.status(400).send('Incorrect password.');
+            }
 
-      req.session.user = {
-        id: user.id,
-        username: user.username,
-        email: user.email
-      };
+            if (!user.is_verified) {
+                return res.status(403).send('Please verify your email before logging in.');
+            }
 
-      res.render('login', { username: user.username });    });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).send('Server error.');
-  }
+            req.session.user = {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                phone_number: user.phone_number || '',
+                address: user.address || ''
+            };
+
+            req.session.save((saveError) => {
+                if (saveError) {
+                    console.error('Session save error:', saveError);
+                    return res.status(500).send('Unable to complete login.');
+                }
+
+                return res.redirect('/products');
+            });
+        });
+    } catch (error) {
+        console.error('Login error:', error);
+        return res.status(500).send('Server error.');
+    }
 };
+
+
 
 const logout = (req, res) => {
-  req.session.destroy(err => {
-    if (err) {
-      return res.status(500).send('Error logging out.');
-    }
-    res.sendFile(path.join(__dirname, '..', 'public', 'homepage.html'));
-  });
+    req.session.destroy((err) => {
+        if (err) {
+            console.error('Logout error:', err);
+            return res.status(500).send('Error logging out.');
+        }
+
+        res.clearCookie('connect.sid');
+        return res.sendFile(
+            path.join(__dirname, '..', 'public', 'homepage.html')
+        );
+    });
 };
-
-
-
 
 
 module.exports = {

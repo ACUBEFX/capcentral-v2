@@ -79,6 +79,33 @@ exports.listProducts = async (req, res) => {
             ORDER BY name ASC
         `);
 
+        // Load all product variants.
+        const [variants] = await db.promise().query(`
+           SELECT id, product_id, size, price, stock_quantity, is_active
+            FROM product_variants
+            ORDER BY product_id ASC, size ASC
+        `);
+
+        // Attach each variant to its product.
+        const variantsByProduct = {};
+
+        variants.forEach(variant => {
+            if (!variantsByProduct[variant.product_id]) {
+                variantsByProduct[variant.product_id] = [];
+            }
+
+            variantsByProduct[variant.product_id].push({
+                ...variant,
+                price: Number(variant.price),
+                stock_quantity: Number(variant.stock_quantity)
+            });
+        });
+
+        products.forEach(product => {
+            product.variants =
+                variantsByProduct[product.id] || [];
+        });
+
         res.render('admin/products', {
             products,
             categories,
@@ -86,15 +113,18 @@ exports.listProducts = async (req, res) => {
             message: null,
             error: null
         });
+
     } catch (err) {
-    console.error('Error loading admin products:', err);
-    return res.status(500).send(
-        'Could not load products: ' + err.message
-    );
-}
+        console.error('Error loading admin products:', err);
+
+        return res.status(500).send(
+            'Could not load products: ' + err.message
+        );
+    }
 };
 
 // Add a new product.
+
 exports.addProduct = async (req, res) => {
     const {
         product_code,
@@ -110,35 +140,141 @@ exports.addProduct = async (req, res) => {
     const productCode = String(product_code || '').trim();
     const productName = String(name || '').trim();
     const categoryName = String(category || '').trim();
-    const productPrice = Number(price);
+    const categoryKey = categoryName.toLowerCase();
 
-    const capType = categoryName === 'Caps'
+    const capType = categoryKey === 'caps'
         ? String(cap_type || '').trim()
         : null;
 
-    // Caps remain unique, one-off items with stock of 1.
-    const quantity = categoryName === 'Caps'
-        ? 1
-        : (
-            stock_quantity === '' || stock_quantity === undefined
-                ? 10
-                : Number(stock_quantity)
+    const sizeOptions = {
+        'abaya': ['50', '52', '54', '56', '58', '60', '62', '64'],
+        'shoes': ['40', '41', '42', '43', '44', '45'],
+        'thobes': ['56', '58', '60', '62'],
+        'perfume': ['15ml', '30ml', '50ml', '100ml']
+    };
+
+    if (categoryKey === 'caps') {
+        sizeOptions.caps = capType === 'Tonak'
+            ? ['50', '51', '52', '53', '54', '55']
+            : ['22', '22½', '23', '23⅓', '24½', '25'];
+    }
+
+    const requiredSizes = sizeOptions[categoryKey] || [];
+
+    const rawSizes = req.body['variant_size[]'] ??
+        req.body.variant_size;
+
+    const rawPrices = req.body['variant_price[]'] ??
+        req.body.variant_price;
+
+    const rawStocks = req.body['variant_stock[]'] ??
+        req.body.variant_stock;
+
+    const toArray = value => {
+        if (value === undefined || value === null) return [];
+        return Array.isArray(value) ? value : [value];
+    };
+
+    const submittedSizes = toArray(rawSizes);
+    const submittedPrices = toArray(rawPrices);
+    const submittedStocks = toArray(rawStocks);
+
+    const hasVariants = requiredSizes.length > 0;
+
+    let variants = [];
+    let productPrice;
+    let quantity;
+
+    if (hasVariants) {
+        if (
+            submittedSizes.length !== requiredSizes.length ||
+            submittedPrices.length !== requiredSizes.length ||
+            submittedStocks.length !== requiredSizes.length ||
+            !requiredSizes.every(size => submittedSizes.includes(size)) ||
+            new Set(submittedSizes).size !== requiredSizes.length
+        ) {
+            return res.status(400).send(
+                'Please provide every required product size exactly once.'
+            );
+        }
+
+        variants = submittedSizes.map((size, index) => ({
+            size,
+            price: submittedPrices[index],
+            stock: submittedStocks[index]
+        }));
+
+        const validVariants = variants.every(variant => {
+            const stockText = String(variant.stock ?? '').trim();
+            const stock = Number(stockText);
+
+            return (
+                isValidProductPrice(variant.price) &&
+                /^\d+$/.test(stockText) &&
+                Number.isSafeInteger(stock) &&
+                stock >= 0 &&
+                stock <= 4294967295
+            );
+        });
+
+        const totalStock = variants.reduce(
+            (total, variant) => total + Number(variant.stock),
+            0
         );
 
-   if (
-    !isValidProductText(productCode, 100) ||
-    !isValidProductText(productName, 255) ||
-    !isValidProductText(categoryName, 100) ||
-    !isValidProductPrice(price) ||
-    !Number.isInteger(quantity) ||
-    quantity < 0 ||
-    quantity > 4294967295 ||
-    !isValidOptionalText(description, 65535) ||
-    !isValidOptionalText(image_url, 500) ||
-    (categoryName === 'Caps' && !validCapTypes.includes(capType))
-) {
-    return res.status(400).send('Please enter valid product details.');
-}
+        if (
+            !validVariants ||
+            !Number.isSafeInteger(totalStock) ||
+            totalStock > 4294967295
+        ) {
+            return res.status(400).send(
+                'Please enter valid prices and stock quantities for every size.'
+            );
+        }
+
+        productPrice = Math.min(
+            ...variants.map(variant => Number(variant.price))
+        );
+
+        quantity = totalStock;
+    } else {
+        productPrice = Number(price);
+
+        const stockText = stock_quantity === undefined ||
+            stock_quantity === ''
+            ? '10'
+            : String(stock_quantity).trim();
+
+        quantity = Number(stockText);
+
+        if (
+            !isValidProductPrice(price) ||
+            !/^\d+$/.test(stockText) ||
+            !Number.isSafeInteger(quantity) ||
+            quantity < 0 ||
+            quantity > 4294967295
+        ) {
+            return res.status(400).send(
+                'Please enter a valid product price and stock quantity.'
+            );
+        }
+    }
+
+    if (
+        !isValidProductText(productCode, 100) ||
+        !isValidProductText(productName, 255) ||
+        !isValidProductText(categoryName, 100) ||
+        !isValidOptionalText(description, 65535) ||
+        !isValidOptionalText(image_url, 500) ||
+        (
+            categoryKey === 'caps' &&
+            !validCapTypes.includes(capType)
+        )
+    ) {
+        return res.status(400).send(
+            'Please enter valid product details.'
+        );
+    }
 
     let connection;
 
@@ -146,11 +282,14 @@ exports.addProduct = async (req, res) => {
         connection = await db.promise().getConnection();
         await connection.beginTransaction();
 
-        // Ensure the submitted category exists before inserting the product.
-        const exists = await categoryExists(connection, categoryName);
+        const exists = await categoryExists(
+            connection,
+            categoryName
+        );
 
         if (!exists) {
             await connection.rollback();
+
             return res.status(400).send(
                 'The selected category does not exist. Please choose an existing category.'
             );
@@ -173,7 +312,46 @@ exports.addProduct = async (req, res) => {
             ]
         );
 
-        if (quantity > 0) {
+        const productId = result.insertId;
+
+        if (hasVariants) {
+            for (const variant of variants) {
+                const variantStock = Number(variant.stock);
+                const variantPrice = Number(variant.price);
+
+                const [variantResult] = await connection.query(
+                    `INSERT INTO product_variants
+                        (product_id, size, price, stock_quantity, is_active)
+                     VALUES (?, ?, ?, ?, 1)`,
+                    [
+                        productId,
+                        variant.size,
+                        variantPrice,
+                        variantStock
+                    ]
+                );
+
+                if (variantStock > 0) {
+                    await connection.query(
+                        `INSERT INTO stock_movements
+                            (product_code, variant_id, variant_size,
+                             change_quantity, previous_quantity,
+                             new_quantity, reason, admin_user_id)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [
+                            productCode,
+                            variantResult.insertId,
+                            variant.size,
+                            variantStock,
+                            0,
+                            variantStock,
+                            'Initial stock',
+                            req.admin.id
+                        ]
+                    );
+                }
+            }
+        } else if (quantity > 0) {
             await connection.query(
                 `INSERT INTO stock_movements
                     (product_code, change_quantity, previous_quantity,
@@ -199,21 +377,28 @@ exports.addProduct = async (req, res) => {
                 req.admin.id,
                 'CREATE_PRODUCT',
                 'product',
-                result.insertId,
+                productId,
                 JSON.stringify({
                     product_code: productCode,
                     name: productName,
                     category: categoryName,
                     cap_type: capType,
                     price: productPrice,
-                    stock_quantity: quantity
+                    stock_quantity: quantity,
+                    variants: variants.map(variant => ({
+                        size: variant.size,
+                        price: Number(variant.price),
+                        stock_quantity: Number(variant.stock)
+                    }))
                 }),
                 req.ip
             ]
         );
 
         await connection.commit();
+
         return res.redirect('/admin/products');
+
     } catch (error) {
         if (connection) {
             await connection.rollback().catch(() => {});
@@ -223,17 +408,19 @@ exports.addProduct = async (req, res) => {
 
         if (error.code === 'ER_DUP_ENTRY') {
             return res.status(409).send(
-                'That product code already exists. Use a unique product code.'
+                'That product code or product size already exists.'
             );
         }
 
         return res.status(500).send('Could not add product.');
+
     } finally {
         if (connection) {
             connection.release();
         }
     }
 };
+
 
 // Activate or deactivate a product.
 exports.toggleProduct = async (req, res) => {

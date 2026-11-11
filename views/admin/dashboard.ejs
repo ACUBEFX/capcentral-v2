@@ -570,55 +570,14 @@
     </style>
 </head>
 
-<body>
-<div class="layout">
+<body class="admin-page">
+<%- include('../partials/admin-shell-start', {
+    admin: admin,
+    adminPageTitle: 'Admin Dashboard',
+    adminActivePage: 'dashboard'
+}) %>
 
-    <aside class="sidebar">
-        <div class="brand">CapCentral</div>
-        <div class="sidebar-subtitle">Store administration</div>
-<nav id="admin-sidebar-nav">
-            <div class="nav-label">Main</div>
-
-            <a href="/admin" class="active">Dashboard</a>
-            <a href="/admin/orders">Orders</a>
-            <a href="/admin/payments">Payments</a>
-            <a href="/admin/deliveries">Deliveries</a>
-            <a href="/admin/order-requests">Order Requests</a>
-
-            <div class="nav-label">Management</div>
-
-
-
-
-            <a href="/admin/products">Products & Stock</a>
-            <a href="/admin/categories"> Categories</a>
-            <a href="/admin/customers">Customers</a>
-            <a href="/admin/services">Cap Services</a>
-
-        </nav>
-    </aside>
-
-    <div class="admin-nav-backdrop" id="admin-nav-backdrop"></div>
-    <main class="main">
-        <header class="topbar">
-            <div class="topbar-heading">
-                <button type="button" class="admin-mobile-toggle"
-                        id="admin-mobile-toggle"
-                        aria-expanded="false"
-                        aria-controls="admin-sidebar-nav"
-                        aria-label="Open navigation">
-                    ☰
-                </button>
-                <h1>Admin Dashboard</h1>
-            </div>
-
-            <div class="admin-info">
-                Signed in as<br>
-                <strong><%= admin.username %></strong>
-            </div>
-        </header>
-
-        <div class="content">
+<div class="content">
             <section class="welcome">
                 <h2>Welcome back, <%= admin.username %></h2>
                 <p>
@@ -867,87 +826,4 @@
             CapCentral Administration<br>
             <span id="dashboard-refresh-status">Live dashboard refresh is enabled (every 15 seconds).</span>
         </footer>
-    </main>
-
-</div>
-<!-- <script>
-    // Refresh the dashboard so server-rendered figures stay current without
-    // requiring the administrator to press Ctrl+F5. Other admin pages are not refreshed.
-    (() => {
-        const REFRESH_INTERVAL_MS = 15000;
-        let refreshTimer = null;
-
-        const scheduleRefresh = () => {
-            if (refreshTimer) clearTimeout(refreshTimer);
-            if (document.visibilityState === 'visible') {
-                refreshTimer = setTimeout(() => {
-                    window.location.reload();
-                }, REFRESH_INTERVAL_MS);
-            }
-        };
-
-        document.addEventListener('visibilitychange', scheduleRefresh);
-        scheduleRefresh();
-    })();
-</script> -->
-<script>
-    // Admin mobile navigation - overlay sidebar
-    const adminNavToggle = document.getElementById('admin-mobile-toggle');
-    const adminSidebar = document.querySelector('.sidebar');
-    const adminSidebarNav = document.getElementById('admin-sidebar-nav');
-    const adminNavBackdrop = document.getElementById('admin-nav-backdrop');
-
-    function closeAdminMenu() {
-        if (!adminSidebar || !adminNavToggle || !adminNavBackdrop) return;
-
-        adminSidebar.classList.remove('admin-sidebar-open');
-        adminNavBackdrop.classList.remove('admin-backdrop-open');
-        document.body.classList.remove('admin-menu-open');
-
-        adminNavToggle.setAttribute('aria-expanded', 'false');
-        adminNavToggle.setAttribute('aria-label', 'Open navigation');
-        adminNavToggle.textContent = '☰';
-    }
-
-    if (adminNavToggle && adminSidebar && adminSidebarNav && adminNavBackdrop) {
-        adminNavToggle.addEventListener('click', () => {
-            const isOpen = adminSidebar.classList.contains('admin-sidebar-open');
-
-            if (isOpen) {
-                closeAdminMenu();
-            } else {
-                adminSidebar.classList.add('admin-sidebar-open');
-                adminNavBackdrop.classList.add('admin-backdrop-open');
-                document.body.classList.add('admin-menu-open');
-
-                adminNavToggle.setAttribute('aria-expanded', 'true');
-                adminNavToggle.setAttribute('aria-label', 'Close navigation');
-                adminNavToggle.textContent = '✕';
-            }
-        });
-
-        adminNavBackdrop.addEventListener('click', closeAdminMenu);
-
-        adminSidebarNav.querySelectorAll('a').forEach(link => {
-            link.addEventListener('click', closeAdminMenu);
-        });
-
-        document.addEventListener('keydown', event => {
-            if (event.key === 'Escape') closeAdminMenu();
-        });
-    }
-</script>
-</body>
-</html>
-
-
-
-
-
-
-
-
-
-
-
-
+    <%- include('../partials/admin-shell-end') %>

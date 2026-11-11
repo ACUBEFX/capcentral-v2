@@ -1,4 +1,4 @@
-
+﻿
 <!DOCTYPE html>
 <html lang="en">
 
@@ -50,6 +50,22 @@
             margin-top: 7px;
             opacity: 0.9;
             font-size: 14px;
+        }
+        .return-cart-link {
+            display: inline-block;
+            margin-top: 14px;
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            border: 1px solid rgba(255,255,255,0.65);
+            border-radius: 20px;
+            padding: 7px 15px;
+            transition: background 0.2s ease;
+        }
+
+        .return-cart-link:hover {
+            background: rgba(255,255,255,0.18);
         }
 
         /* CONTENT */
@@ -306,6 +322,7 @@
         <p>
             Secure Checkout
         </p>
+        <a href="/index1.html" class="return-cart-link">Return to Cart</a>
     </div>
 
 
@@ -377,7 +394,7 @@
                 <div class="delivery-card">
 
                     <div class="delivery-icon">
-                        📦
+                        Package
                     </div>
 
                     <div class="delivery-info">
@@ -387,7 +404,7 @@
                         </div>
 
                         <div class="delivery-description">
-                            Delivered within 2–3 business days
+                            Delivered within 2-3 business days
                         </div>
 
                     </div>
@@ -415,7 +432,7 @@
                 <div class="delivery-card">
 
                     <div class="delivery-icon">
-                        ⚡
+                        Express
                     </div>
 
                     <div class="delivery-info">
@@ -425,7 +442,7 @@
                         </div>
 
                         <div class="delivery-description">
-                            Delivered within 1–2 business days
+                            Delivered within 1-2 business days
                         </div>
 
                     </div>
@@ -526,45 +543,44 @@
             >
 
 
-            <!-- EMAIL -->
-            <div class="form-section">
+            
+<!-- EMAIL -->
+<div class="form-section">
+    <label for="email">Email Address</label>
 
-                <label for="email">
-                    Email Address
-                </label>
-
-                <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    required
-                    placeholder="Enter your email address"
-                >
-
-            </div>
+    <input
+        type="email"
+        id="email"
+        name="email"
+        value="<%= customer?.email || '' %>"
+        required
+        placeholder="Enter your email address"
+    >
+</div>
 
 
-            <!-- DELIVERY ADDRESS -->
-            <div class="form-section">
 
-                <label for="deliveryAddress">
-                    Delivery Address
-                    <span class="required">*</span>
-                </label>
+            
+<!-- DELIVERY ADDRESS -->
+<div class="form-section">
+    <label for="deliveryAddress">
+        Delivery Address
+        <span class="required">*</span>
+    </label>
 
-                <textarea
-                    id="deliveryAddress"
-                    name="deliveryAddress"
-                    required
-                    placeholder="Enter the full address where you want your order delivered"
-                ></textarea>
+    <textarea
+        id="deliveryAddress"
+        name="deliveryAddress"
+        required
+        placeholder="Enter the full address where you want your order delivered"
+    ><%= customer?.address || '' %></textarea>
 
-                <div class="address-help">
-                    Please include your house/building number,
-                    street, area, city, and any useful landmark.
-                </div>
+    <div class="address-help">
+        Please include your house/building number,
+        street, area, city, and any useful landmark.
+    </div>
+</div>
 
-            </div>
 
 
             <!-- PAY BUTTON -->
@@ -572,7 +588,7 @@
                 type="submit"
                 class="pay-button"
             >
-                🔒 Pay Securely
+                Pay Securely Pay Securely
             </button>
 
             <div class="secure">
@@ -585,7 +601,7 @@
 
 
     <div class="footer">
-        © 2026 CapCentral · Thank you for shopping with us.
+        &copy; 2026 CapCentral | Thank you for shopping with us.
     </div>
 
 </div>
@@ -695,4 +711,6 @@
 
 </body>
 </html>
+
+
 

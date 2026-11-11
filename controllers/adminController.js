@@ -728,28 +728,240 @@ exports.updateDeliveryDetails = async (req, res) => {
     }
 };
 
+
 exports.customerDeliveries = async (req, res) => {
     let connection;
+
     try {
-        const userId = req.session.user?.id;
-        if (!userId) return res.redirect('/login');
+        const userId = Number(req.session.user?.id);
+
+        if (!Number.isInteger(userId) || userId <= 0) {
+            return res.redirect('/login');
+        }
+
         connection = await db.promise().getConnection();
-        const [users] = await connection.query('SELECT email FROM signup WHERE id = ? LIMIT 1', [userId]);
-        if (!users.length) return res.redirect('/login');
+
+        const [users] = await connection.query(
+            'SELECT email FROM signup WHERE id = ? LIMIT 1',
+            [userId]
+        );
+
+        if (!users.length) {
+            return res.redirect('/login');
+        }
+
         const email = users[0].email;
+
         const [orders] = await connection.query(`
-            SELECT order_reference, total_amount, currency, order_status, delivery_address,
-                   delivery_option, tracking_number, dispatch_date, delivered_at, delivery_notes, created_at
+            SELECT
+                id,
+                user_id,
+                order_reference,
+                customer_name,
+                customer_email,
+                subtotal,
+                delivery_fee,
+                express_surcharge,
+                total_amount,
+                currency,
+                order_status,
+                delivery_address,
+                delivery_type,
+                delivery_option,
+                tracking_number,
+                dispatch_date,
+                delivered_date,
+                delivered_at,
+                delivery_notes,
+                created_at,
+                updated_at
             FROM orders
             WHERE user_id = ? OR customer_email = ?
             ORDER BY created_at DESC, id DESC
             LIMIT 200
         `, [userId, email]);
-        res.render('customer-deliveries', { orders });
+
+        if (orders.length) {
+            const orderIds = orders.map(order => order.id);
+
+            const [items] = await connection.query(
+                `SELECT *
+                 FROM order_items
+                 WHERE order_id IN (?)`,
+                [orderIds]
+            );
+
+            orders.forEach(order => {
+                order.items = items.filter(
+                    item => Number(item.order_id) === Number(order.id)
+                );
+            });
+        }
+
+        const [requests] = await connection.query(`
+            SELECT
+                r.*,
+                o.order_reference,
+                o.total_amount,
+                o.currency,
+                o.order_status
+            FROM order_requests r
+            INNER JOIN orders o ON o.id = r.order_id
+            WHERE r.user_id = ?
+            ORDER BY r.created_at DESC, r.id DESC
+        `, [userId]);
+
+        return res.render('customer-deliveries', {
+            orders,
+            requests,
+            user: req.session.user
+        });
+
     } catch (error) {
         console.error('Customer delivery tracking error:', error);
-        res.status(500).send('Could not load your delivery tracking. Please try again later.');
+
+        return res.status(500).send(
+            'Could not load your delivery tracking. Please try again later.'
+        );
+
+    } finally {
+        if (connection) {
+            connection.release();
+        }
+    }
+};
+
+// =====================================================
+// ADMIN: VIEW CUSTOMER CANCELLATION AND REFUND REQUESTS
+// =====================================================
+
+exports.orderRequests = async (req, res) => {
+    let connection;
+
+    try {
+        connection = await db.promise().getConnection();
+
+        const [requests] = await connection.execute(`
+            SELECT
+                r.id, r.order_id, r.user_id, r.request_type,
+                r.reason, r.request_status, r.admin_note,
+                r.reviewed_at, r.created_at,
+                o.order_reference, o.customer_name,
+                o.customer_email, o.total_amount,
+                o.currency, o.order_status,
+                u.username
+            FROM order_requests r
+            INNER JOIN orders o ON o.id = r.order_id
+            LEFT JOIN signup u ON u.id = r.user_id
+            ORDER BY
+                CASE WHEN r.request_status = 'pending' THEN 0 ELSE 1 END,
+                r.created_at DESC
+            LIMIT 500
+        `);
+
+        return res.render('admin/order-requests', {
+            admin: req.admin,
+            requests,
+            message: req.query.message || '',
+            error: req.query.error || ''
+        });
+
+    } catch (error) {
+        console.error('Admin order requests error:', error);
+        return res.status(500).send('Unable to load customer order requests.');
     } finally {
         if (connection) connection.release();
     }
 };
+
+
+// =====================================================
+// ADMIN: APPROVE OR REJECT CUSTOMER REQUEST
+// =====================================================
+
+exports.reviewOrderRequest = async (req, res) => {
+    let connection;
+    let transactionStarted = false;
+
+    const requestId = Number(req.params.id);
+    const decision = String(req.body.decision || '').trim();
+    const adminNote = String(req.body.admin_note || '').trim();
+    const adminId = Number(req.session?.user?.id);
+
+    const redirectError = message =>
+        res.redirect('/admin/order-requests?error=' + encodeURIComponent(message));
+
+    if (!Number.isSafeInteger(requestId) || requestId <= 0) {
+        return redirectError('Invalid request.');
+    }
+
+    if (!['approved', 'rejected'].includes(decision)) {
+        return redirectError('Choose approve or reject.');
+    }
+
+    if (!Number.isSafeInteger(adminId) || adminId <= 0) {
+        return res.status(403).send('Administrator session not found.');
+    }
+
+    if (adminNote.length > 2000) {
+        return redirectError('Admin response cannot exceed 2,000 characters.');
+    }
+
+    try {
+        connection = await db.promise().getConnection();
+        await connection.beginTransaction();
+        transactionStarted = true;
+
+        const [rows] = await connection.execute(`
+            SELECT id, request_status
+            FROM order_requests
+            WHERE id = ?
+            FOR UPDATE
+        `, [requestId]);
+
+        if (!rows.length) {
+            await connection.rollback();
+            transactionStarted = false;
+            return redirectError('Request not found.');
+        }
+
+        if (rows[0].request_status !== 'pending') {
+            await connection.rollback();
+            transactionStarted = false;
+            return redirectError('This request has already been reviewed.');
+        }
+
+        await connection.execute(`
+            UPDATE order_requests
+            SET request_status = ?,
+                admin_note = ?,
+                reviewed_by = ?,
+                reviewed_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `, [decision, adminNote || null, adminId, requestId]);
+
+        await connection.commit();
+        transactionStarted = false;
+
+        return res.redirect(
+            '/admin/order-requests?message=' +
+            encodeURIComponent(`Request ${decision} successfully.`)
+        );
+
+    } catch (error) {
+        if (connection && transactionStarted) {
+            try {
+                await connection.rollback();
+            } catch (rollbackError) {
+                console.error('Request rollback error:', rollbackError);
+            }
+        }
+
+        console.error('Admin review request error:', error);
+        return redirectError('Unable to review this request.');
+    } finally {
+        if (connection) connection.release();
+    }
+};
+

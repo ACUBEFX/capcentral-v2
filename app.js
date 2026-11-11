@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 
@@ -6,6 +6,7 @@ const bodyParser = require('body-parser');
 const session = require('express-session');
 const path = require('path');
 require('dotenv').config();
+const reservationExpiryService = require('./services/reservationExpiryService');
 const flash = require('connect-flash');
 
 const authRoutes = require('./routes/authroutes');
@@ -46,7 +47,16 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
-app.use(express.json());
+app.use(express.json({
+    verify: (req, res, buf) => {
+        if (
+            req.originalUrl.split('?')[0] ===
+            '/checkout/webhook'
+        ) {
+            req.rawBody = Buffer.from(buf);
+        }
+    }
+}));
 
 // Routes
 app.use('/', authRoutes);
@@ -96,4 +106,10 @@ app.use((err, req, res, next) => {
 // Server start
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running at http://localhost:${PORT}`);
+  reservationExpiryService.start();
 });
+
+
+
+
+

@@ -93,6 +93,7 @@ router.get('/category/:slug', (req, res) => {
 
 
  // Public, read-only product data for existing product cards.
+// Public, read-only product data, including available size variants.
 router.get('/api/products', (req, res) => {
     const category = req.query.category;
 
@@ -115,8 +116,10 @@ router.get('/api/products', (req, res) => {
         'Tonak'
     ];
 
-    if (capType && (category.toLowerCase() !== 'caps' ||
-        !allowedCapTypes.includes(capType))) {
+    if (capType && (
+        category.toLowerCase() !== 'caps' ||
+        !allowedCapTypes.includes(capType)
+    )) {
         return res.status(400).json({
             error: 'Invalid cap type.'
         });
@@ -150,16 +153,65 @@ router.get('/api/products', (req, res) => {
         (err, products) => {
             if (err) {
                 console.error('Error loading public product data:', err);
+
                 return res.status(500).json({
                     error: 'Could not load products.'
                 });
             }
 
-            res.set('Cache-Control', 'no-store');
-            res.json(products);
+            if (!products.length) {
+                res.set('Cache-Control', 'no-store');
+                return res.json([]);
+            }
+
+            const productIds = products.map(product => product.id);
+            const placeholders = productIds.map(() => '?').join(',');
+
+            const variantSql = `
+                SELECT
+                    id,
+                    product_id,
+                    size,
+                    price,
+                    stock_quantity
+                FROM product_variants
+                WHERE product_id IN (${placeholders})
+                ORDER BY id ASC
+            `;
+
+            db.query(variantSql, productIds, (variantError, variants) => {
+                if (variantError) {
+                    console.error('Error loading product variants:', variantError);
+
+                    return res.status(500).json({
+                        error: 'Could not load product variants.'
+                    });
+                }
+
+                const variantsByProduct = {};
+
+                variants.forEach(variant => {
+                    if (!variantsByProduct[variant.product_id]) {
+                        variantsByProduct[variant.product_id] = [];
+                    }
+
+                    variantsByProduct[variant.product_id].push({
+                        id: variant.id,
+                        size: variant.size,
+                        price: Number(variant.price),
+                        stock_quantity: Number(variant.stock_quantity)
+                    });
+                });
+
+                const result = products.map(product => ({
+                    ...product,
+                    variants: variantsByProduct[product.id] || []
+                }));
+
+                res.set('Cache-Control', 'no-store');
+                return res.json(result);
+            });
         }
     );
 });
-
-
 module.exports = router;

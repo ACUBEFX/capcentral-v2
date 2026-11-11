@@ -42,7 +42,7 @@ exports.initializeTransaction = async (
             },
 
             callback_url:
-                'http://192.168.0.101:8000/checkout/callback'
+                process.env.PAYSTACK_CALLBACK_URL
         },
 
         {

@@ -1,7 +1,1266 @@
+﻿
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>My Deliveries | CapCentral</title>
-<style>*{box-sizing:border-box}body{margin:0;background:#f4f6fb;color:#1e293b;font-family:Arial,sans-serif}.top{padding:22px;background:white;border-bottom:1px solid #e2e8f0}main{max-width:1100px;margin:28px auto;padding:0 16px}h1{margin:0 0 6px;font-size:24px}.muted{font-size:13px;color:#64748b;line-height:1.5}.order{background:white;border:1px solid #e2e8f0;border-radius:12px;padding:18px;margin:14px 0}.row{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}.status{display:inline-block;background:#e2e8f0;border-radius:20px;padding:6px 10px;font-size:12px;text-transform:capitalize}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:16px}.label{font-size:12px;color:#64748b;margin-bottom:5px}.value{font-size:14px;overflow-wrap:anywhere}.empty{background:white;padding:28px;border-radius:12px;text-align:center;color:#64748b}a{color:#172554}@media(max-width:600px){main{margin:18px auto}}</style></head>
-<body><header class="top"><h1>My Deliveries</h1><div class="muted">Track your CapCentral orders and delivery updates.</div></header><main><p><a href="/profile">← Back to my profile</a></p>
-<% if (!orders.length) { %><div class="empty">You don't have any order records to track yet. After a successful checkout, your order will appear here.</div><% } %>
-<% orders.forEach(order => { %><section class="order"><div class="row"><div><strong><%= order.order_reference %></strong><div class="muted">Placed <%= order.created_at ? new Date(order.created_at).toLocaleString('en-NG') : '—' %></div></div><span class="status"><%= order.order_status %></span></div><div class="grid"><div><div class="label">Order total</div><div class="value"><%= order.currency || 'NGN' %> <%= Number(order.total_amount || 0).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2}) %></div></div><div><div class="label">Delivery type</div><div class="value"><%= order.delivery_option || 'standard' %></div></div><div><div class="label">Tracking number</div><div class="value"><%= order.tracking_number || 'Not assigned yet' %></div></div><div><div class="label">Dispatch date</div><div class="value"><%= order.dispatch_date ? new Date(order.dispatch_date).toLocaleString('en-NG') : 'Not dispatched yet' %></div></div><div><div class="label">Delivered date</div><div class="value"><%= order.delivered_at ? new Date(order.delivered_at).toLocaleString('en-NG') : 'Not delivered yet' %></div></div><div><div class="label">Delivery address</div><div class="value"><%= order.delivery_address || 'Address not recorded' %></div></div><% if (order.delivery_notes) { %><div><div class="label">Delivery update</div><div class="value"><%= order.delivery_notes %></div></div><% } %></div></section><% }) %>
-</main></body></html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Deliveries | CapCentral</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:wght@500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #333;
+            --secondary-color: #555;
+            --accent-color: #8B4513;
+            --text-color: #333;
+            --light-bg: #f5f5f5;
+            --white: #fff;
+            --border-radius: 10px;
+            --box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background: var(--light-bg);
+            color: var(--text-color);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 5%;
+            min-height: 65px;
+            background: #000;
+            color: #fff;
+            box-shadow: 0 2px 10px rgba(0,0,0,.1);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #fff;
+            text-decoration: none;
+        }
+
+        .logo img {
+            width: 65px;
+            height: auto;
+            object-fit: contain;
+        }
+
+        #brandname {
+            color: #fff;
+            font-family: 'Lora', serif;
+            font-size: 23px;
+            font-weight: 600;
+        }
+
+        .header-link {
+            color: #fff;
+            text-decoration: none;
+            font-size: 13px;
+            transition: var(--transition);
+        }
+
+        .header-link:hover {
+            color: var(--accent-color);
+        }
+
+        /* Navigation */
+        nav {
+            background: var(--secondary-color);
+            padding: 12px 5%;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 25px;
+            flex-wrap: wrap;
+        }
+
+        .nav-links a {
+            color: #fff;
+            text-decoration: none;
+            font-size: 13px;
+            transition: var(--transition);
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: #d7a77c;
+        }
+
+        /* Main content */
+        main {
+            max-width: 1200px;
+            margin: 35px auto;
+            padding: 0 5%;
+        }
+
+        .page-heading {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .page-heading h1 {
+            font-family: 'Lora', serif;
+            font-size: 30px;
+            margin-bottom: 10px;
+        }
+
+        .page-heading p {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .heading-line {
+            width: 75px;
+            height: 3px;
+            background: var(--accent-color);
+            margin: 14px auto 0;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 22px;
+            color: var(--accent-color);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Order dropdown cards */
+        .order-card {
+            background: var(--white);
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            margin-bottom: 18px;
+            overflow: hidden;
+            border: 1px solid #eee;
+            transition: var(--transition);
+        }
+
+        .order-card:hover {
+            box-shadow: 0 8px 22px rgba(0,0,0,.1);
+        }
+
+        .order-card summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            padding: 20px;
+            cursor: pointer;
+            list-style: none;
+        }
+
+        .order-card summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .order-card summary:hover {
+            background: #faf8f6;
+        }
+
+        .order-summary-left {
+            min-width: 0;
+        }
+
+        .order-reference {
+            font-size: 15px;
+            font-weight: 700;
+            overflow-wrap: anywhere;
+            margin-bottom: 7px;
+        }
+
+        .order-date {
+            color: #777;
+            font-size: 12px;
+        }
+
+        .order-summary-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .chevron {
+            color: var(--accent-color);
+            font-size: 20px;
+            transition: transform .3s ease;
+        }
+
+        details[open] .chevron {
+            transform: rotate(180deg);
+        }
+
+        /* Status labels */
+        .status {
+            display: inline-block;
+            padding: 6px 11px;
+            border-radius: 30px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: capitalize;
+            background: #eee;
+            color: #555;
+        }
+
+        .status.delivered,
+        .status.paid,
+        .status.approved,
+        .status.success {
+            background: #e7f5e9;
+            color: #24743a;
+        }
+
+        .status.pending,
+        .status.processing,
+        .status.reserved {
+            background: #fff3df;
+            color: #98600b;
+        }
+
+        .status.cancelled,
+        .status.refunded,
+        .status.rejected,
+        .status.failed {
+            background: #fdeaea;
+            color: #a52b2b;
+        }
+
+        .status.shipped {
+            background: #e8f0ff;
+            color: #28569b;
+        }
+
+        /* Order content */
+        .order-content {
+            padding: 22px;
+            border-top: 1px solid #eee;
+        }
+
+        .section-title {
+            font-family: 'Lora', serif;
+            font-size: 17px;
+            margin-bottom: 15px;
+        }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 18px;
+            margin-bottom: 25px;
+        }
+
+        .detail-box {
+            padding: 14px;
+            background: #fafafa;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            min-width: 0;
+        }
+
+        .detail-label {
+            color: #777;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            margin-bottom: 7px;
+        }
+
+        .detail-value {
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+        }
+
+        .order-total {
+            color: var(--accent-color);
+            font-size: 17px;
+        }
+
+        /* Order items */
+        .items-list {
+            margin-bottom: 25px;
+        }
+
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            padding: 13px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+        }
+
+        .item-row:last-child {
+            border-bottom: none;
+        }
+
+        .item-name {
+            font-weight: 600;
+            overflow-wrap: anywhere;
+        }
+
+        .item-meta {
+            color: #777;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .item-price {
+            color: var(--accent-color);
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        /* Delivery notes */
+        .delivery-note {
+            padding: 15px;
+            margin-bottom: 22px;
+            background: #faf5f0;
+            border-left: 4px solid var(--accent-color);
+            border-radius: 5px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        /* Request forms */
+        .request-panel {
+            margin-top: 22px;
+            padding: 20px;
+            background: #fafafa;
+            border: 1px solid #eee;
+            border-radius: 9px;
+        }
+
+        .request-panel h3 {
+            font-family: 'Lora', serif;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .request-panel p {
+            color: #666;
+            font-size: 12px;
+            line-height: 1.6;
+            margin-bottom: 14px;
+        }
+
+        .request-form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .request-form textarea {
+            width: 100%;
+            min-height: 90px;
+            resize: vertical;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .request-form textarea:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(139,69,19,.1);
+        }
+
+        .request-form button {
+            align-self: flex-start;
+            padding: 11px 20px;
+            color: #fff;
+            background: #000;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .request-form button:hover {
+            background: var(--accent-color);
+        }
+
+        .request-history {
+            margin-top: 25px;
+        }
+
+        .request-item {
+            padding: 15px;
+            margin-bottom: 12px;
+            background: #fff;
+            border: 1px solid #eee;
+            border-radius: 8px;
+        }
+
+        .request-item-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+
+        .request-item p {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+        }
+
+        /* Empty state */
+        .empty-state {
+            padding: 50px 20px;
+            background: #fff;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            text-align: center;
+        }
+
+        .empty-state h2 {
+            font-family: 'Lora', serif;
+            margin-bottom: 12px;
+        }
+
+        .empty-state p {
+            color: #777;
+            font-size: 13px;
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+
+        .shop-button {
+            display: inline-block;
+            padding: 12px 22px;
+            color: #fff;
+            background: #000;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 700;
+            transition: var(--transition);
+        }
+
+        .shop-button:hover {
+            background: var(--accent-color);
+            color: #fff;
+        }
+
+        /* Footer */
+        footer {
+            margin-top: 55px;
+            padding: 30px 5%;
+            background: #030303;
+            color: #fff;
+            text-align: center;
+        }
+
+        footer p {
+            font-size: 12px;
+            color: #bbb;
+            line-height: 1.7;
+        }
+
+       /* =========================================
+   COMPLETE RESPONSIVE LAYOUT
+========================================= */
+
+/* Prevent horizontal overflow */
+html {
+    width: 100%;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+}
+
+body {
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+}
+
+header,
+nav,
+main,
+footer {
+    width: 100%;
+    min-width: 0;
+}
+
+main {
+    max-width: 1200px;
+    margin: 35px auto;
+    padding: 0 24px;
+}
+
+/* Keep long content from expanding the page */
+.order-card,
+.order-content,
+.order-summary-left,
+.order-summary-right,
+.detail-box,
+.request-panel,
+.request-item,
+.item-row {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.order-reference,
+.detail-value,
+.item-name,
+.request-item p,
+.delivery-note {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* Navigation */
+.nav-container {
+    width: 100%;
+    flex-wrap: wrap;
+}
+
+.nav-links {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 18px 25px;
+}
+
+/* Order summary */
+.order-card summary {
+    min-width: 0;
+}
+
+.order-summary-right {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+/* Order details */
+.details-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.detail-box {
+    min-width: 0;
+}
+
+/* Order items */
+.item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.item-row > div:first-child {
+    flex: 1;
+    min-width: 0;
+}
+
+.item-price {
+    flex-shrink: 0;
+    white-space: normal;
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+/* Forms */
+.request-form {
+    width: 100%;
+}
+
+.request-form textarea {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.request-form button {
+    max-width: 100%;
+    white-space: normal;
+}
+
+/* Tablet */
+@media (max-width: 992px) {
+    main {
+        max-width: 100%;
+        padding: 0 22px;
+    }
+
+    .details-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .order-content {
+        padding: 20px;
+    }
+
+    .nav-links {
+        gap: 15px 20px;
+    }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    header {
+        padding: 12px 18px;
+        gap: 12px;
+    }
+
+    .logo {
+        min-width: 0;
+        gap: 8px;
+    }
+
+    .logo img {
+        width: 48px;
+    }
+
+    #brandname {
+        font-size: 19px;
+    }
+
+    .header-link {
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    nav {
+        padding: 12px 18px;
+    }
+
+    .nav-container {
+        justify-content: center;
+    }
+
+    .nav-links {
+        justify-content: center;
+        gap: 12px 20px;
+    }
+
+    .nav-links a {
+        font-size: 12px;
+        display: inline-block;
+        padding: 5px 0;
+    }
+
+    main {
+        margin: 25px auto;
+        padding: 0 16px;
+    }
+
+    .page-heading {
+        margin-bottom: 24px;
+    }
+
+    .page-heading h1 {
+        font-size: 25px;
+    }
+
+    .page-heading p {
+        font-size: 13px;
+    }
+
+    .order-card summary {
+        padding: 16px;
+        gap: 12px;
+    }
+
+    .order-reference {
+        font-size: 13px;
+    }
+
+    .order-content {
+        padding: 17px;
+    }
+
+    .details-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .detail-box {
+        padding: 12px;
+    }
+
+    .detail-value {
+        font-size: 12px;
+    }
+
+    .section-title {
+        font-size: 16px;
+    }
+
+    .request-panel {
+        padding: 16px;
+    }
+
+    .request-form button {
+        width: 100%;
+        align-self: stretch;
+    }
+
+    .empty-state {
+        padding: 35px 16px;
+    }
+
+    footer {
+        margin-top: 35px;
+        padding: 25px 16px;
+    }
+}
+
+/* Small phones */
+@media (max-width: 480px) {
+    header {
+        padding: 10px 12px;
+    }
+
+    .logo img {
+        width: 40px;
+    }
+
+    #brandname {
+        font-size: 17px;
+    }
+
+    .header-link {
+        font-size: 11px;
+    }
+
+    nav {
+        padding: 10px 12px;
+    }
+
+    .nav-links {
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .nav-links a {
+        font-size: 11px;
+    }
+
+    main {
+        margin: 20px auto;
+        padding: 0 12px;
+    }
+
+    .back-link {
+        margin-bottom: 16px;
+    }
+
+    .page-heading h1 {
+        font-size: 22px;
+    }
+
+    .page-heading p {
+        font-size: 12px;
+    }
+
+    .order-card {
+        margin-bottom: 14px;
+        border-radius: 8px;
+    }
+
+    .order-card summary {
+        padding: 13px 11px;
+        gap: 7px;
+    }
+
+    .order-summary-left {
+        flex: 1;
+    }
+
+    .order-summary-right {
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 5px;
+    }
+
+    .order-reference {
+        font-size: 12px;
+    }
+
+    .order-date {
+        font-size: 10px;
+        line-height: 1.5;
+    }
+
+    .status {
+        padding: 5px 8px;
+        font-size: 9px;
+    }
+
+    .chevron {
+        font-size: 17px;
+    }
+
+    .order-content {
+        padding: 13px 11px;
+    }
+
+    .details-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .detail-box {
+        padding: 10px 8px;
+    }
+
+    .detail-label {
+        font-size: 9px;
+    }
+
+    .detail-value {
+        font-size: 11px;
+        line-height: 1.5;
+    }
+
+    .order-total {
+        font-size: 13px;
+    }
+
+    .item-row {
+        gap: 8px;
+        padding: 12px 0;
+        font-size: 11px;
+    }
+
+    .item-meta {
+        font-size: 10px;
+    }
+
+    .item-price {
+        font-size: 11px;
+    }
+
+    .delivery-note {
+        padding: 12px;
+        font-size: 11px;
+    }
+
+    .request-panel {
+        padding: 13px 10px;
+    }
+
+    .request-panel h3 {
+        font-size: 14px;
+    }
+
+    .request-panel p {
+        font-size: 11px;
+    }
+
+    .request-form textarea {
+        font-size: 12px;
+        min-height: 85px;
+    }
+
+    .request-form button {
+        font-size: 11px;
+        padding: 12px 8px;
+    }
+
+    .request-item {
+        padding: 12px;
+    }
+
+    .request-item p {
+        font-size: 11px;
+    }
+
+    .empty-state h2 {
+        font-size: 19px;
+    }
+
+    .empty-state p {
+        font-size: 12px;
+    }
+}
+
+/* Very small phones */
+@media (max-width: 360px) {
+    header {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .header-link {
+        padding: 5px;
+    }
+
+    .nav-links {
+        justify-content: center;
+        gap: 8px 14px;
+    }
+
+    .details-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .order-card summary {
+        align-items: flex-start;
+    }
+
+    .order-summary-right {
+        flex-shrink: 0;
+    }
+
+    .item-row {
+        flex-direction: column;
+    }
+
+    .item-price {
+        text-align: left;
+    }
+}
+
+/* Accessibility: reduce motion when requested */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+    }
+}
+    </style>
+    <link rel="stylesheet" href="/customer-account-nav.css">
+</head>
+
+<body>
+
+<%- include('partials/customer-account-nav', { activePage: 'deliveries' }) %>
+
+<main>
+
+    <a href="/profile" class="back-link">â† Back to My Profile</a>
+
+    <div class="page-heading">
+        <h1>My Deliveries</h1>
+        <p>View your orders, check delivery progress and manage your order requests.</p>
+        <div class="heading-line"></div>
+    </div>
+
+    <% if (!orders || orders.length === 0) { %>
+
+        <div class="empty-state">
+            <h2>No Orders Yet</h2>
+            <p>
+                You haven't placed any orders yet.
+                Your orders will appear here after checkout.
+            </p>
+            <a href="/products" class="shop-button">Explore Products</a>
+        </div>
+
+    <% } else { %>
+
+        <% orders.forEach(function(order) { %>
+
+            <details class="order-card">
+
+                <summary>
+                    <div class="order-summary-left">
+                        <div class="order-reference">
+                            Order #<%= order.order_reference || order.id %>
+                        </div>
+
+                        <div class="order-date">
+                            Placed:
+                            <%= order.created_at
+                                ? new Date(order.created_at).toLocaleString('en-NG')
+                                : 'Date unavailable' %>
+                        </div>
+                    </div>
+
+                    <div class="order-summary-right">
+                        <span class="status <%= String(order.order_status || 'pending').toLowerCase() %>">
+                            <%= order.order_status || 'Pending' %>
+                        </span>
+                        <span class="chevron">&#8250;</span>
+                    </div>
+                </summary>
+
+                <div class="order-content">
+
+                    <h2 class="section-title">Order Summary</h2>
+
+                    <div class="details-grid">
+
+                        <div class="detail-box">
+                            <div class="detail-label">Order Total</div>
+                            <div class="detail-value order-total">
+                                <%= order.currency || 'NGN' %>
+                                <%= Number(order.total_amount || 0).toLocaleString('en-NG', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                }) %>
+                            </div>
+                        </div>
+
+                        <div class="detail-box">
+                            <div class="detail-label">Order Status</div>
+                            <div class="detail-value">
+                                <%= order.order_status || 'Pending' %>
+                            </div>
+                        </div>
+
+                        <div class="detail-box">
+                            <div class="detail-label">Delivery Option</div>
+                            <div class="detail-value">
+                                <%= order.delivery_option || order.delivery_type || 'Standard' %>
+                            </div>
+                        </div>
+
+                        <div class="detail-box">
+                            <div class="detail-label">Tracking Number</div>
+                            <div class="detail-value">
+                                <%= order.tracking_number || 'Not assigned yet' %>
+                            </div>
+                        </div>
+
+                        <div class="detail-box">
+                            <div class="detail-label">Dispatch Date</div>
+                            <div class="detail-value">
+                                <%= order.dispatch_date
+                                    ? new Date(order.dispatch_date).toLocaleDateString('en-NG')
+                                    : 'Not dispatched yet' %>
+                            </div>
+                        </div>
+
+                        <div class="detail-box">
+                            <div class="detail-label">Delivered Date</div>
+                            <div class="detail-value">
+                                <%= order.delivered_at
+                                    ? new Date(order.delivered_at).toLocaleDateString('en-NG')
+                                    : (order.delivered_date
+                                        ? new Date(order.delivered_date).toLocaleDateString('en-NG')
+                                        : 'Not delivered yet') %>
+                            </div>
+                        </div>
+
+                        <div class="detail-box">
+                            <div class="detail-label">Delivery Address</div>
+                            <div class="detail-value">
+                                <%= order.delivery_address || 'Address not recorded' %>
+                            </div>
+                        </div>
+
+                        <div class="detail-box">
+                            <div class="detail-label">Customer</div>
+                            <div class="detail-value">
+                                <%= order.customer_name || '&#8212;' %>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <% if (order.items && order.items.length > 0) { %>
+
+                        <div class="items-list">
+                            <h2 class="section-title">Items in This Order</h2>
+
+                            <% order.items.forEach(function(item) { %>
+                                <div class="item-row">
+                                    <div>
+                                        <div class="item-name">
+                                            <%= item.product_name || 'Product' %>
+                                        </div>
+
+                                        <div class="item-meta">
+                                            <% if (item.product_size) { %>
+                                                Size: <%= item.product_size %> Â·
+                                            <% } %>
+                                            Quantity: <%= item.quantity %>
+                                        </div>
+                                    </div>
+
+                                    <div class="item-price">
+                                        <%= order.currency || 'NGN' %>
+                                        <%= Number(item.total_price || 0).toLocaleString('en-NG', {
+                                            minimumFractionDigits: 2,
+                                            maximumFractionDigits: 2
+                                        }) %>
+                                    </div>
+                                </div>
+                            <% }); %>
+                        </div>
+
+                    <% } %>
+
+                    <% if (order.delivery_notes) { %>
+                        <div class="delivery-note">
+                            <strong>Delivery Update:</strong><br>
+                            <%= order.delivery_notes %>
+                        </div>
+                    <% } %>
+
+                    <% if (Number(order.user_id) === Number(user.id) &&
+                        !['cancelled', 'refunded', 'delivered'].includes(String(order.order_status || '').toLowerCase())) { %>
+
+                        <div class="request-panel">
+                            <h3>Request Order Cancellation</h3>
+                            <p>
+                                Submit a cancellation request for this order.
+                                Your request will be reviewed by our team.
+                            </p>
+
+                            <form action="/profile/order-request" method="POST" class="request-form">
+                                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                <input type="hidden" name="order_id" value="<%= order.id %>">
+                                <input type="hidden" name="request_type" value="cancellation">
+
+                                <textarea name="reason"
+                                    placeholder="Please explain why you want to cancel this order..."
+                                    maxlength="2000"
+                                    required></textarea>
+
+                                <button type="submit">Submit Cancellation Request</button>
+                            </form>
+                        </div>
+
+                    <% } %>
+
+                    <% if (Number(order.user_id) === Number(user.id) &&
+                        ['delivered', 'paid', 'processing', 'shipped'].includes(String(order.order_status || '').toLowerCase())) { %>
+
+                        <div class="request-panel">
+                            <h3>Request a Refund</h3>
+                            <p>
+                                If you have an issue with this order, you can submit
+                                a refund request for review.
+                            </p>
+
+                            <form action="/profile/order-request" method="POST" class="request-form">
+                                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                <input type="hidden" name="order_id" value="<%= order.id %>">
+                                <input type="hidden" name="request_type" value="refund">
+
+                                <textarea name="reason"
+                                    placeholder="Please explain why you are requesting a refund..."
+                                    maxlength="2000"
+                                    required></textarea>
+
+                                <button type="submit">Submit Refund Request</button>
+                            </form>
+                        </div>
+
+                    <% } %>
+
+                </div>
+            </details>
+
+        <% }); %>
+
+    <% } %>
+
+    <% if (requests && requests.length > 0) { %>
+
+        <section class="request-history">
+            <h2 class="section-title">My Cancellation & Refund Requests</h2>
+
+            <% requests.forEach(function(request) { %>
+
+                <div class="request-item">
+
+                    <div class="request-item-header">
+                        <strong>
+                            Order #<%= request.order_reference || request.order_id %>
+                        </strong>
+
+                        <span class="status <%= String(request.request_status || 'pending').toLowerCase() %>">
+                            <%= request.request_status || 'Pending' %>
+                        </span>
+                    </div>
+
+                    <p>
+                        <strong>Request type:</strong>
+                        <%= request.request_type || '&#8212;' %>
+                    </p>
+
+                    <p>
+                        <strong>Reason:</strong>
+                        <%= request.reason || 'No reason provided' %>
+                    </p>
+
+                    <% if (request.admin_note) { %>
+                        <p>
+                            <strong>Admin response:</strong>
+                            <%= request.admin_note %>
+                        </p>
+                    <% } %>
+
+                    <p>
+                        <strong>Submitted:</strong>
+                        <%= request.created_at
+                            ? new Date(request.created_at).toLocaleString('en-NG')
+                            : '&#8212;' %>
+                    </p>
+
+                </div>
+
+            <% }); %>
+        </section>
+
+    <% } %>
+
+</main>
+
+<footer>
+    <p>&copy; <%= new Date().getFullYear() %> CapCentral. All rights reserved.</p>
+</footer>
+
+    <script src="/customer-account-nav.js" defer></script>
+    <script src="/customer-bottom-nav.js" defer></script>
+</body>
+</html>
+
+
+
+

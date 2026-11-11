@@ -8,12 +8,74 @@ const {
 } = require('../utils/mailer');
 
 // =====================================================
-// RESERVATION HELPERS
+// GENERAL HELPERS
 // =====================================================
 
 function createReservationToken() {
     return crypto.randomUUID();
 }
+
+function getVariantId(item) {
+    const value = item.variantId ?? item.variant_id;
+    if (value === undefined || value === null || value === '') {
+        return null;
+    }
+
+    const id = Number(value);
+    if (!Number.isSafeInteger(id) || id <= 0) {
+        throw new Error('Invalid product variant.');
+    }
+
+    return id;
+}
+
+function normalizeCart(value) {
+    if (Array.isArray(value)) return value;
+
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+            console.error('Error parsing cart:', error.message);
+        }
+    }
+
+    return [];
+}
+
+function parsePaystackMetadata(value) {
+    if (!value) return {};
+
+    if (typeof value === 'object') return value;
+
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value);
+            return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch (error) {
+            console.error('Error parsing Paystack metadata:', error.message);
+        }
+    }
+
+    return {};
+}
+
+function normalizeDeliveryOption(value) {
+    const option = Array.isArray(value) ? value[0] : value;
+
+    return String(option || 'standard').toLowerCase() === 'express'
+        ? 'express'
+        : 'standard';
+}
+
+function isCaps(product) {
+    return String(product.category || '').trim().toLowerCase() === 'caps';
+}
+
+// =====================================================
+// INVENTORY RESERVATION
+// =====================================================
 
 async function reserveInventory(reservationToken, cart) {
     if (!reservationToken || !Array.isArray(cart) || !cart.length) {
@@ -32,6 +94,7 @@ async function reserveInventory(reservationToken, cart) {
                 item.productId ?? item.product_id ?? item.id
             );
 
+            const variantId = getVariantId(item);
             const quantity = Number(item.quantity ?? 1);
 
             if (
@@ -40,23 +103,36 @@ async function reserveInventory(reservationToken, cart) {
                 !Number.isSafeInteger(quantity) ||
                 quantity <= 0
             ) {
-                throw new Error(
-                    'Every cart item must have a valid product ID and quantity.'
-                );
+                throw new Error('Invalid product or quantity.');
             }
 
-            quantities.set(
+            const key = `${productId}:${variantId || 'product'}`;
+            const previous = quantities.get(key);
+
+            const combinedQuantity =
+                (previous?.quantity || 0) + quantity;
+
+            if (!Number.isSafeInteger(combinedQuantity)) {
+                throw new Error('Invalid combined product quantity.');
+            }
+
+            quantities.set(key, {
                 productId,
-                (quantities.get(productId) || 0) + quantity
-            );
+                variantId,
+                quantity: combinedQuantity
+            });
         }
 
-        const productIds = [...quantities.keys()].sort((a, b) => a - b);
+        const entries = [...quantities.values()].sort(
+            (a, b) =>
+                a.productId - b.productId ||
+                (a.variantId || 0) - (b.variantId || 0)
+        );
 
-        for (const productId of productIds) {
-            const quantity = quantities.get(productId);
+        for (const entry of entries) {
+            const { productId, variantId, quantity } = entry;
 
-            const [rows] = await connection.execute(
+            const [products] = await connection.execute(
                 `SELECT id, name, category, stock_quantity, is_active
                  FROM products
                  WHERE id = ?
@@ -64,30 +140,73 @@ async function reserveInventory(reservationToken, cart) {
                 [productId]
             );
 
-            if (rows.length !== 1 || Number(rows[0].is_active) !== 1) {
+            if (
+                products.length !== 1 ||
+                Number(products[0].is_active) !== 1
+            ) {
                 throw new Error(`Product ${productId} is unavailable.`);
             }
 
-            const product = rows[0];
+            const product = products[0];
 
-            if (product.category === 'Caps' && quantity !== 1) {
+            let stockTable = 'products';
+            let stockId = productId;
+
+            if (variantId !== null) {
+                const [variants] = await connection.execute(
+                    `SELECT id, product_id, size, stock_quantity
+                     FROM product_variants
+                     WHERE id = ? AND product_id = ?
+                     FOR UPDATE`,
+                    [variantId, productId]
+                );
+
+                if (variants.length !== 1) {
+                    throw new Error(
+                        `Selected variant for ${product.name} is unavailable.`
+                    );
+                }
+
+                stockTable = 'product_variants';
+                stockId = variantId;
+            } else {
+                const [variants] = await connection.execute(
+                    `SELECT id
+                     FROM product_variants
+                     WHERE product_id = ?
+                     LIMIT 1`,
+                    [productId]
+                );
+
+                if (variants.length) {
+                    throw new Error(
+                        `Please select a size for ${product.name}.`
+                    );
+                }
+            }
+
+            if (isCaps(product) && quantity !== 1) {
                 throw new Error(
-                    `Caps are unique items. Quantity must be one for ${product.name}.`
+                    `Caps are unique items: ${product.name}.`
                 );
             }
 
             const [updated] = await connection.execute(
-                `UPDATE products
-                 SET stock_quantity = stock_quantity - ?
-                 WHERE id = ?
-                   AND is_active = 1
-                   AND stock_quantity >= ?`,
-                [quantity, productId, quantity]
+                stockTable === 'product_variants'
+                    ? `UPDATE product_variants
+                       SET stock_quantity = stock_quantity - ?
+                       WHERE id = ? AND stock_quantity >= ?`
+                    : `UPDATE products
+                       SET stock_quantity = stock_quantity - ?
+                       WHERE id = ?
+                         AND is_active = 1
+                         AND stock_quantity >= ?`,
+                [quantity, stockId, quantity]
             );
 
             if (updated.affectedRows !== 1) {
                 throw new Error(
-                    `Insufficient available stock for ${product.name}.`
+                    `Insufficient stock for ${product.name}.`
                 );
             }
 
@@ -96,15 +215,16 @@ async function reserveInventory(reservationToken, cart) {
                     (
                         reservation_token,
                         product_id,
+                        variant_id,
                         quantity,
                         status,
                         expires_at
                     )
                  VALUES (
-                    ?, ?, ?, 'reserved',
+                    ?, ?, ?, ?, 'reserved',
                     DATE_ADD(NOW(), INTERVAL 30 MINUTE)
                  )`,
-                [reservationToken, productId, quantity]
+                [reservationToken, productId, variantId, quantity]
             );
         }
 
@@ -118,8 +238,10 @@ async function reserveInventory(reservationToken, cart) {
     }
 }
 
-// Restores stock only when a reservation is successfully released.
-// The transaction prevents duplicate releases from restoring stock twice.
+// =====================================================
+// RELEASE INVENTORY RESERVATION
+// =====================================================
+
 async function releaseReservation(reservationToken) {
     if (!reservationToken) return;
 
@@ -129,7 +251,7 @@ async function releaseReservation(reservationToken) {
         await connection.beginTransaction();
 
         const [reservations] = await connection.execute(
-            `SELECT id, product_id, quantity
+            `SELECT id, product_id, variant_id, quantity
              FROM inventory_reservations
              WHERE reservation_token = ?
                AND status = 'reserved'
@@ -153,10 +275,23 @@ async function releaseReservation(reservationToken) {
             }
 
             const [stockUpdate] = await connection.execute(
-                `UPDATE products
-                SET stock_quantity = stock_quantity + ?
-                WHERE id = ?`,
-                [reservation.quantity, reservation.product_id]
+                reservation.variant_id
+                    ? `UPDATE product_variants
+                       SET stock_quantity = stock_quantity + ?
+                       WHERE id = ? AND product_id = ?`
+                    : `UPDATE products
+                       SET stock_quantity = stock_quantity + ?
+                       WHERE id = ?`,
+                reservation.variant_id
+                    ? [
+                        reservation.quantity,
+                        reservation.variant_id,
+                        reservation.product_id
+                    ]
+                    : [
+                        reservation.quantity,
+                        reservation.product_id
+                    ]
             );
 
             if (stockUpdate.affectedRows !== 1) {
@@ -175,9 +310,15 @@ async function releaseReservation(reservationToken) {
     }
 }
 
+// =====================================================
+// LINK RESERVATION TO PAYSTACK
+// =====================================================
+
 async function linkReservationToPayment(reservationToken, reference) {
     if (!reservationToken || !reference) {
-        throw new Error('Reservation token and payment reference are required.');
+        throw new Error(
+            'Reservation token and payment reference are required.'
+        );
     }
 
     const [result] = await db.promise().execute(
@@ -198,63 +339,23 @@ async function linkReservationToPayment(reservationToken, reference) {
         );
 
         if (!rows.length) {
-            throw new Error('Could not link the inventory reservation to Paystack.');
+            throw new Error(
+                'Could not link the inventory reservation to Paystack.'
+            );
         }
     }
-}
-
-// =====================================================
-// NORMALIZATION HELPERS
-// =====================================================
-
-function parsePaystackMetadata(value) {
-    if (!value) return {};
-
-    if (typeof value === 'object') return value;
-
-    if (typeof value === 'string') {
-        try {
-            const parsed = JSON.parse(value);
-            return parsed && typeof parsed === 'object' ? parsed : {};
-        } catch (error) {
-            console.error('Error parsing Paystack metadata:', error.message);
-        }
-    }
-
-    return {};
-}
-
-function normalizeCart(value) {
-    if (Array.isArray(value)) return value;
-
-    if (typeof value === 'string') {
-        try {
-            const parsed = JSON.parse(value);
-            return Array.isArray(parsed) ? parsed : [];
-        } catch (error) {
-            console.error('Error parsing cart:', error.message);
-        }
-    }
-
-    return [];
-}
-
-function normalizeDeliveryOption(value) {
-    const option = Array.isArray(value) ? value[0] : value;
-
-    return String(option || 'standard').toLowerCase() === 'express'
-        ? 'express'
-        : 'standard';
 }
 
 // =====================================================
 // LEGACY STOCK DEDUCTION
-// Used only for payments that have no reservation token.
+// Used only when no reservation token exists.
 // =====================================================
 
 async function updatePurchasedProductStock(reference, cart) {
     if (!reference || !Array.isArray(cart) || !cart.length) {
-        throw new Error('Missing payment reference or valid cart.');
+        throw new Error(
+            'Missing payment reference or valid cart.'
+        );
     }
 
     const connection = await db.promise().getConnection();
@@ -286,7 +387,11 @@ async function updatePurchasedProductStock(reference, cart) {
 
             let rows = [];
 
-            if (rawId && Number.isSafeInteger(productId) && productId > 0) {
+            if (
+                rawId &&
+                Number.isSafeInteger(productId) &&
+                productId > 0
+            ) {
                 [rows] = await connection.execute(
                     `SELECT id, name, category, stock_quantity
                      FROM products
@@ -339,28 +444,70 @@ async function updatePurchasedProductStock(reference, cart) {
             }
 
             const product = rows[0];
+            const variantId = getVariantId(item);
 
-            if (
-                product.category === 'Caps' &&
-                quantity !== 1
-            ) {
+            if (isCaps(product) && quantity !== 1) {
                 throw new Error(
                     `Caps are unique items: ${product.name}.`
                 );
             }
 
-            const [updated] = await connection.execute(
-                `UPDATE products
-                 SET stock_quantity = stock_quantity - ?
-                 WHERE id = ?
-                   AND stock_quantity >= ?`,
-                [quantity, product.id, quantity]
-            );
-
-            if (updated.affectedRows !== 1) {
-                throw new Error(
-                    `Insufficient stock for ${product.name}.`
+            if (variantId !== null) {
+                const [variants] = await connection.execute(
+                    `SELECT id
+                     FROM product_variants
+                     WHERE id = ? AND product_id = ?
+                     FOR UPDATE`,
+                    [variantId, product.id]
                 );
+
+                if (variants.length !== 1) {
+                    throw new Error(
+                        `Invalid variant for ${product.name}.`
+                    );
+                }
+
+                const [updated] = await connection.execute(
+                    `UPDATE product_variants
+                     SET stock_quantity = stock_quantity - ?
+                     WHERE id = ?
+                       AND stock_quantity >= ?`,
+                    [quantity, variantId, quantity]
+                );
+
+                if (updated.affectedRows !== 1) {
+                    throw new Error(
+                        `Insufficient variant stock for ${product.name}.`
+                    );
+                }
+            } else {
+                const [variants] = await connection.execute(
+                    `SELECT id
+                     FROM product_variants
+                     WHERE product_id = ?
+                     LIMIT 1`,
+                    [product.id]
+                );
+
+                if (variants.length) {
+                    throw new Error(
+                        `Please select a size for ${product.name}.`
+                    );
+                }
+
+                const [updated] = await connection.execute(
+                    `UPDATE products
+                     SET stock_quantity = stock_quantity - ?
+                     WHERE id = ?
+                       AND stock_quantity >= ?`,
+                    [quantity, product.id, quantity]
+                );
+
+                if (updated.affectedRows !== 1) {
+                    throw new Error(
+                        `Insufficient stock for ${product.name}.`
+                    );
+                }
             }
         }
 
@@ -375,14 +522,15 @@ async function updatePurchasedProductStock(reference, cart) {
 }
 
 // =====================================================
-// FINALIZE A RESERVED PAYMENT
-// The stock was deducted when it was reserved.
-// Do not deduct it a second time.
+// FINALIZE RESERVED PAYMENT
+// Stock was already deducted during reservation.
 // =====================================================
 
 async function finalizeReservationPayment(reference, reservationToken) {
     if (!reference || !reservationToken) {
-        throw new Error('Missing payment reference or reservation token.');
+        throw new Error(
+            'Missing payment reference or reservation token.'
+        );
     }
 
     const connection = await db.promise().getConnection();
@@ -390,23 +538,11 @@ async function finalizeReservationPayment(reference, reservationToken) {
     try {
         await connection.beginTransaction();
 
-        const [claim] = await connection.execute(
-            `INSERT IGNORE INTO processed_cap_payments (reference)
-             VALUES (?)`,
-            [reference]
-        );
-
-        if (claim.affectedRows === 0) {
-            await connection.commit();
-            console.log(`Reservation payment already processed: ${reference}`);
-            return;
-        }
-
         const [reservations] = await connection.execute(
             `SELECT id, status, paystack_reference
-            FROM inventory_reservations
-            WHERE reservation_token = ?
-            FOR UPDATE`,
+             FROM inventory_reservations
+             WHERE reservation_token = ?
+             FOR UPDATE`,
             [reservationToken]
         );
 
@@ -417,18 +553,21 @@ async function finalizeReservationPayment(reference, reservationToken) {
         }
 
         if (reservations.some(row => row.status !== 'reserved')) {
-            throw new Error(
-                `Reservation is not active for payment ${reference}.`
-            );
-        }
-        
-        if (reservations.some(row => row.status !== 'reserved')) {
+            // Allow an already-paid reservation to be processed again.
+            if (reservations.every(
+                row =>
+                    row.status === 'paid' &&
+                    row.paystack_reference === reference
+            )) {
+                await connection.commit();
+                return;
+            }
+
             throw new Error(
                 `Reservation is not active for payment ${reference}.`
             );
         }
 
-        // Prevent a reservation from being finalized against another payment.
         if (
             reservations.some(
                 row =>
@@ -443,16 +582,6 @@ async function finalizeReservationPayment(reference, reservationToken) {
 
         await connection.execute(
             `UPDATE inventory_reservations
-            SET status = 'paid',
-                paystack_reference = ?
-            WHERE reservation_token = ?
-            AND status = 'reserved'`,
-            [reference, reservationToken]
-        );
-
-
-        await connection.execute(
-            `UPDATE inventory_reservations
              SET status = 'paid',
                  paystack_reference = ?
              WHERE reservation_token = ?
@@ -462,7 +591,9 @@ async function finalizeReservationPayment(reference, reservationToken) {
 
         await connection.commit();
 
-        console.log(`Reservation finalized for payment: ${reference}`);
+        console.log(
+            `Reservation finalized for payment: ${reference}`
+        );
     } catch (error) {
         await connection.rollback();
         throw error;
@@ -486,16 +617,21 @@ async function processVerifiedPaymentStock(paymentData, metadata, cart) {
 // SAVE VERIFIED ORDER
 // =====================================================
 
-
 async function savePaidOrder(paymentData, metadata = {}) {
     const reference = String(paymentData.reference || '').trim();
 
     if (!reference) {
-        throw new Error('Cannot save an order without a Paystack reference.');
+        throw new Error(
+            'Cannot save an order without a Paystack reference.'
+        );
     }
 
-    if (String(paymentData.status || '').toLowerCase() !== 'success') {
-        throw new Error('Cannot save an order for an unsuccessful payment.');
+    if (
+        String(paymentData.status || '').toLowerCase() !== 'success'
+    ) {
+        throw new Error(
+            'Cannot save an order for an unsuccessful payment.'
+        );
     }
 
     const amount = Number(paymentData.amount) / 100;
@@ -507,7 +643,9 @@ async function savePaidOrder(paymentData, metadata = {}) {
     const cart = normalizeCart(metadata.cart);
 
     if (!cart.length) {
-        throw new Error(`Cannot save order ${reference}: cart is empty.`);
+        throw new Error(
+            `Cannot save order ${reference}: cart is empty.`
+        );
     }
 
     const surcharge = Math.max(
@@ -516,17 +654,25 @@ async function savePaidOrder(paymentData, metadata = {}) {
     );
 
     const rawUserId = Number(metadata.userId);
-    const userId =
-        Number.isInteger(rawUserId) && rawUserId > 0 ? rawUserId : null;
 
-    const deliveryOption = normalizeDeliveryOption(metadata.deliveryOption);
+    const userId =
+        Number.isInteger(rawUserId) && rawUserId > 0
+            ? rawUserId
+            : null;
+
+    const deliveryOption =
+        normalizeDeliveryOption(metadata.deliveryOption);
 
     const customerEmail = String(
-        paymentData.customer?.email || metadata.email || ''
+        paymentData.customer?.email ||
+        metadata.email ||
+        ''
     ).trim();
 
     if (!customerEmail) {
-        throw new Error(`Missing customer email for order ${reference}.`);
+        throw new Error(
+            `Missing customer email for order ${reference}.`
+        );
     }
 
     const customerName = String(
@@ -540,17 +686,22 @@ async function savePaidOrder(paymentData, metadata = {}) {
     ).trim().slice(0, 255);
 
     const customerPhone = String(
-        metadata.customerPhone || paymentData.customer?.phone || ''
+        metadata.customerPhone ||
+        paymentData.customer?.phone ||
+        ''
     ).trim().slice(0, 20) || null;
 
     const deliveryAddress = String(
         metadata.deliveryAddress || ''
     ).trim().slice(0, 2000) || null;
 
-    const currency = String(paymentData.currency || 'NGN').toUpperCase();
+    const currency =
+        String(paymentData.currency || 'NGN').toUpperCase();
 
     if (currency !== 'NGN') {
-        throw new Error(`Unexpected payment currency: ${currency}.`);
+        throw new Error(
+            `Unexpected payment currency: ${currency}.`
+        );
     }
 
     const connection = await db.promise().getConnection();
@@ -558,7 +709,6 @@ async function savePaidOrder(paymentData, metadata = {}) {
     try {
         await connection.beginTransaction();
 
-        // Lock an existing order, if this reference was already processed.
         const [existingOrders] = await connection.execute(
             `SELECT id
              FROM orders
@@ -572,24 +722,31 @@ async function savePaidOrder(paymentData, metadata = {}) {
         if (existingOrders.length) {
             orderId = existingOrders[0].id;
         } else {
-            // Preserve the existing orders table structure.
             const [orderResult] = await connection.execute(
                 `INSERT INTO orders
                     (
-                        order_reference, user_id, customer_name,
-                        customer_email, customer_phone, subtotal,
-                        delivery_fee, express_surcharge, total_amount,
-                        currency, order_status, delivery_address,
+                        order_reference,
+                        user_id,
+                        customer_name,
+                        customer_email,
+                        customer_phone,
+                        subtotal,
+                        delivery_fee,
+                        express_surcharge,
+                        total_amount,
+                        currency,
+                        order_status,
+                        delivery_address,
                         delivery_option
                     )
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'NGN', 'paid', ?, ?)`,
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'NGN', 'paid', ?, ?) ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)`,
                 [
                     reference,
                     userId,
                     customerName,
                     customerEmail,
                     customerPhone,
-                    Math.max(0, amount - surcharge),
+                    0,
                     0,
                     surcharge,
                     amount,
@@ -601,26 +758,37 @@ async function savePaidOrder(paymentData, metadata = {}) {
             orderId = orderResult.insertId;
         }
 
-        // Resolve every cart item against the database.
-        // Never use the browser's submitted price as the authoritative price.
         const orderItems = [];
-        const quantitiesByProduct = new Map();
+        let subtotalInKobo = 0;
 
         for (const item of cart) {
-            const rawId = item.productId ?? item.product_id ?? item.id;
+            const rawId =
+                item.productId ??
+                item.product_id ??
+                item.id;
+
             const productId = Number(rawId);
-            const productCode = item.productCode || item.product_code;
+
+            const productCode =
+                item.productCode || item.product_code;
+
             const quantity = Number(item.quantity ?? 1);
+            const variantId = getVariantId(item);
 
             if (!Number.isSafeInteger(quantity) || quantity < 1) {
-                throw new Error(`Invalid quantity in order ${reference}.`);
+                throw new Error(
+                    `Invalid quantity in order ${reference}.`
+                );
             }
 
             let rows;
 
-            if (Number.isSafeInteger(productId) && productId > 0) {
+            if (
+                Number.isSafeInteger(productId) &&
+                productId > 0
+            ) {
                 [rows] = await connection.execute(
-                    `SELECT id, product_code, name, price, is_active
+                    `SELECT id, product_code, name, price, category, is_active
                      FROM products
                      WHERE id = ?
                      FOR UPDATE`,
@@ -628,7 +796,7 @@ async function savePaidOrder(paymentData, metadata = {}) {
                 );
             } else if (productCode) {
                 [rows] = await connection.execute(
-                    `SELECT id, product_code, name, price, is_active
+                    `SELECT id, product_code, name, price, category, is_active
                      FROM products
                      WHERE product_code = ?
                      FOR UPDATE`,
@@ -636,36 +804,151 @@ async function savePaidOrder(paymentData, metadata = {}) {
                 );
             } else {
                 throw new Error(
-                    `Order item is missing a product ID or product code.`
+                    'Order item is missing a product ID or product code.'
                 );
             }
 
-            if (rows.length !== 1 || Number(rows[0].is_active) !== 1) {
-                throw new Error(`A product in order ${reference} is unavailable.`);
+            if (
+                rows.length !== 1 ||
+                Number(rows[0].is_active) !== 1
+            ) {
+                throw new Error(
+                    `A product in order ${reference} is unavailable.`
+                );
             }
 
             const product = rows[0];
-            const dbProductId = Number(product.id);
-            const unitPrice = Number(product.price);
 
-            if (!Number.isFinite(unitPrice) || unitPrice < 0) {
-                throw new Error(`Invalid database price for ${product.name}.`);
+            let unitPrice;
+            let productSize = null;
+
+            if (variantId !== null) {
+                const [variants] = await connection.execute(
+                    `SELECT id, product_id, size, price
+                     FROM product_variants
+                     WHERE id = ? AND product_id = ?
+                     FOR UPDATE`,
+                    [variantId, product.id]
+                );
+
+                if (variants.length !== 1) {
+                    throw new Error(
+                        `Invalid selected variant for ${product.name}.`
+                    );
+                }
+
+                const variant = variants[0];
+
+                unitPrice = Number(variant.price);
+                productSize = String(variant.size);
+
+                const submittedSize =
+                    item.productSize ??
+                    item.product_size ??
+                    item.size;
+
+                if (
+                    submittedSize &&
+                    String(submittedSize).trim() !== productSize
+                ) {
+                    throw new Error(
+                        `Selected size does not match the variant for ${product.name}.`
+                    );
+                }
+            } else {
+                const [variants] = await connection.execute(
+                    `SELECT id
+                     FROM product_variants
+                     WHERE product_id = ?
+                     LIMIT 1`,
+                    [product.id]
+                );
+
+                if (variants.length) {
+                    throw new Error(
+                        `Please select a size for ${product.name}.`
+                    );
+                }
+
+                unitPrice = Number(product.price);
+                productSize =
+                    item.productSize ||
+                    item.product_size ||
+                    item.size ||
+                    null;
             }
 
-            const previousQuantity = quantitiesByProduct.get(dbProductId) || 0;
-            quantitiesByProduct.set(dbProductId, previousQuantity + quantity);
+            if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+                throw new Error(
+                    `Invalid database price for ${product.name}.`
+                );
+            }
+
+            if (isCaps(product) && quantity !== 1) {
+                throw new Error(
+                    `Caps are unique items: ${product.name}.`
+                );
+            }
+
+            const priceInKobo = Math.round(unitPrice * 100);
+
+            if (!Number.isSafeInteger(priceInKobo)) {
+                throw new Error(
+                    `Invalid price for ${product.name}.`
+                );
+            }
+
+            const lineTotalInKobo = priceInKobo * quantity;
+
+            if (!Number.isSafeInteger(lineTotalInKobo)) {
+                throw new Error('The order total is too large.');
+            }
+
+            subtotalInKobo += lineTotalInKobo;
+
+            if (!Number.isSafeInteger(subtotalInKobo)) {
+                throw new Error('The order subtotal is too large.');
+            }
 
             orderItems.push({
-                productId: String(product.id),
+                productId: Number(product.id),
+                variantId,
                 productName: String(product.name).slice(0, 255),
-                productSize: item.productSize || item.product_size || null,
+                productSize,
                 quantity,
                 unitPrice,
-                totalPrice: Number((unitPrice * quantity).toFixed(2))
+                totalPrice: lineTotalInKobo / 100
             });
         }
 
-        // A callback and webhook may both execute. Insert items only once.
+        const calculatedTotalInKobo =
+            subtotalInKobo + Math.round(surcharge * 100);
+
+        if (
+            Math.abs(calculatedTotalInKobo - Number(paymentData.amount)) > 0
+        ) {
+            throw new Error(
+                `Payment amount does not match the verified order total for ${reference}.`
+            );
+        }
+
+        const subtotal = subtotalInKobo / 100;
+
+        await connection.execute(
+            `UPDATE orders
+             SET subtotal = ?,
+                 express_surcharge = ?,
+                 total_amount = ?,
+                 currency = 'NGN'
+             WHERE id = ?`,
+            [
+                subtotal.toFixed(2),
+                surcharge.toFixed(2),
+                amount.toFixed(2),
+                orderId
+            ]
+        );
+
         const [existingItems] = await connection.execute(
             `SELECT id
              FROM order_items
@@ -679,13 +962,20 @@ async function savePaidOrder(paymentData, metadata = {}) {
                 await connection.execute(
                     `INSERT INTO order_items
                         (
-                            order_id, product_id, product_name,
-                            product_size, quantity, unit_price, total_price
+                            order_id,
+                            product_id,
+                            variant_id,
+                            product_name,
+                            product_size,
+                            quantity,
+                            unit_price,
+                            total_price
                         )
-                     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
                     [
                         orderId,
                         item.productId,
+                        item.variantId,
                         item.productName,
                         item.productSize,
                         item.quantity,
@@ -696,34 +986,44 @@ async function savePaidOrder(paymentData, metadata = {}) {
             }
         }
 
-        // Record the verified Paystack transaction.
-        // paystack_reference has a UNIQUE index.
         await connection.execute(
             `INSERT INTO payments
                 (
-                    order_id, paystack_reference,
-                    paystack_transaction_id, amount, currency,
-                    payment_status, payment_channel, paid_at,
+                    order_id,
+                    paystack_reference,
+                    paystack_transaction_id,
+                    amount,
+                    currency,
+                    payment_status,
+                    payment_channel,
+                    paid_at,
                     gateway_response
                 )
              VALUES (?, ?, ?, ?, ?, 'success', ?, NOW(), ?)
              ON DUPLICATE KEY UPDATE
-                order_id = IF(order_id = VALUES(order_id), order_id, order_id),
-                payment_status = IF(payment_status = 'success', 'success', payment_status)`,
+                order_id = VALUES(order_id),
+                payment_status = 'success'`,
             [
                 orderId,
                 reference,
-                paymentData.id != null ? String(paymentData.id) : null,
+                paymentData.id != null
+                    ? String(paymentData.id)
+                    : null,
                 amount.toFixed(2),
                 currency,
                 paymentData.channel || null,
-                String(paymentData.gateway_response || '').slice(0, 60000) || null
+                String(
+                    paymentData.gateway_response || ''
+                ).slice(0, 60000) || null
             ]
         );
 
         await connection.commit();
 
-        console.log(`Order, items and payment saved: ${reference}`);
+        console.log(
+            `Order, items and payment saved: ${reference}`
+        );
+
         return orderId;
     } catch (error) {
         await connection.rollback();
@@ -738,10 +1038,14 @@ async function savePaidOrder(paymentData, metadata = {}) {
 // =====================================================
 
 async function sendReceiptOnce(paymentData, metadata = {}) {
-    const reference = String(paymentData.reference || '').trim();
+    const reference = String(
+        paymentData.reference || ''
+    ).trim();
 
     const customerEmail = String(
-        paymentData.customer?.email || metadata.email || ''
+        paymentData.customer?.email ||
+        metadata.email ||
+        ''
     ).trim();
 
     const customerName = String(
@@ -751,20 +1055,24 @@ async function sendReceiptOnce(paymentData, metadata = {}) {
             paymentData.customer?.first_name,
             paymentData.customer?.last_name
         ].filter(Boolean).join(' ') ||
-        (customerEmail ? customerEmail.split('@')[0] : 'Customer')
+        (customerEmail
+            ? customerEmail.split('@')[0]
+            : 'Customer')
     ).trim();
 
     const cart = normalizeCart(metadata.cart);
 
     if (!reference || !customerEmail || !cart.length) {
-        console.error('Receipt skipped: reference, email, or cart is missing.');
+        console.error(
+            'Receipt skipped: reference, email, or cart is missing.'
+        );
         return;
     }
 
     const [claim] = await db.promise().execute(
-        `INSERT IGNORE INTO capcentral_receipt_emails
+        `INSERT INTO capcentral_receipt_emails
             (reference, status)
-         VALUES (?, 'sending')`,
+         VALUES (?, 'sending') ON DUPLICATE KEY UPDATE status = IF(status = 'failed', 'sending', status)`,
         [reference]
     );
 
@@ -775,7 +1083,10 @@ async function sendReceiptOnce(paymentData, metadata = {}) {
 
     try {
         await sendProductPaymentConfirmationEmail(
-            { name: customerName, email: customerEmail },
+            {
+                name: customerName,
+                email: customerEmail
+            },
             cart,
             Number(paymentData.amount) / 100,
             normalizeDeliveryOption(metadata.deliveryOption),
@@ -798,10 +1109,16 @@ async function sendReceiptOnce(paymentData, metadata = {}) {
              WHERE reference = ?`,
             [reference]
         ).catch(dbError => {
-            console.error('Could not update receipt status:', dbError.message);
+            console.error(
+                'Could not update receipt status:',
+                dbError.message
+            );
         });
 
-        console.error('Receipt email failed:', error.stack || error.message);
+        console.error(
+            'Receipt email failed:',
+            error.stack || error.message
+        );
     }
 }
 
@@ -809,18 +1126,52 @@ async function sendReceiptOnce(paymentData, metadata = {}) {
 // RENDER CHECKOUT PAGE
 // =====================================================
 
-exports.renderCheckoutPage = (req, res) => {
+exports.renderCheckoutPage = async (req, res) => {
     try {
         const { cart, total, returnUrl } = req.body;
 
-        res.render('checkout', {
+        let customer = {
+            email: '',
+            phone_number: '',
+            address: ''
+        };
+
+        const userId = Number(req.session?.user?.id);
+
+        if (
+            Number.isSafeInteger(userId) &&
+            userId > 0
+        ) {
+            const [rows] = await db.promise().execute(
+                `SELECT username, email, phone_number, address
+                 FROM signup
+                 WHERE id = ?
+                 LIMIT 1`,
+                [userId]
+            );
+
+            if (!rows.length) {
+                return res.redirect('/login');
+            }
+
+            customer = rows[0];
+        }
+
+        return res.render('checkout', {
             cart: normalizeCart(cart),
             total,
-            returnUrl: returnUrl || '/products'
+            returnUrl: returnUrl || '/products',
+            customer
         });
     } catch (error) {
-        console.error('Error rendering checkout:', error.stack || error.message);
-        res.status(500).send('Unable to load checkout page.');
+        console.error(
+            'Error rendering checkout:',
+            error.stack || error.message
+        );
+
+        return res.status(500).send(
+            'Unable to load checkout page.'
+        );
     }
 };
 
@@ -835,10 +1186,8 @@ exports.handlePaystackInit = async (req, res) => {
     try {
         const {
             email,
-            total,
             cart,
             deliveryOption,
-            expressSurcharge,
             returnUrl,
             deliveryAddress
         } = req.body;
@@ -846,137 +1195,281 @@ exports.handlePaystackInit = async (req, res) => {
         const cartParsed = normalizeCart(cart);
 
         if (!cartParsed.length) {
-            return res.status(400).send('Your cart is empty or invalid.');
-        }
-
-        if (!String(email || '').trim()) {
-            return res.status(400).send('Please provide your email address.');
-        }
-
-        if (!String(deliveryAddress || '').trim()) {
-            return res.status(400).send('Please enter the full delivery address.');
-        }
-
-     
-       
-const normalizedDeliveryOption =
-    normalizeDeliveryOption(deliveryOption);
-
-// These fees are controlled by the server.
-const DELIVERY_SURCHARGES = {
-    standard: 0,
-    express: 2000
-};
-
-const normalizedSurcharge =
-    DELIVERY_SURCHARGES[normalizedDeliveryOption];
-
-if (normalizedSurcharge === undefined) {
-    return res.status(400).send('Invalid delivery option.');
-}
-
-// Calculate the subtotal using database prices.
-// Store amounts in kobo during calculations to avoid rounding errors.
-let subtotalInKobo = 0;
-
-const connection = await db.promise().getConnection();
-
-try {
-    const quantitiesByProduct = new Map();
-
-    for (const item of cartParsed) {
-        const rawId = item.productId ?? item.product_id ?? item.id;
-        const id = Number(rawId);
-        const code = item.productCode || item.product_code;
-        const quantity = Number(item.quantity ?? 1);
-
-        if (
-            !Number.isSafeInteger(quantity) ||
-            quantity < 1
-        ) {
-            return res.status(400).send('Invalid product quantity.');
-        }
-
-        let rows = [];
-
-        if (rawId && Number.isSafeInteger(id) && id > 0) {
-            [rows] = await connection.execute(
-                `SELECT id, name, category, price,
-                        stock_quantity, is_active
-                 FROM products
-                 WHERE id = ?`,
-                [id]
-            );
-        } else if (code) {
-            [rows] = await connection.execute(
-                `SELECT id, name, category, price,
-                        stock_quantity, is_active
-                 FROM products
-                 WHERE product_code = ?`,
-                [String(code)]
-            );
-        } else {
             return res.status(400).send(
-                'A cart item is missing its product ID or product code.'
+                'Your cart is empty or invalid.'
             );
         }
 
-        if (
-            rows.length !== 1 ||
-            Number(rows[0].is_active) !== 1
-        ) {
-            return res.status(409).send(
-                'A product is unavailable. Please refresh your cart.'
+        const sessionUserId = Number(req.session?.user?.id);
+
+        const isLoggedIn =
+            Number.isSafeInteger(sessionUserId) &&
+            sessionUserId > 0;
+
+        let customerEmail = String(email || '').trim();
+        let customerAddress = String(
+            deliveryAddress || ''
+        ).trim();
+
+        let customerName = '';
+        let customerPhone = '';
+
+        if (isLoggedIn) {
+            const [users] = await db.promise().execute(
+                `SELECT username, email, phone_number, address
+                 FROM signup
+                 WHERE id = ?
+                 LIMIT 1`,
+                [sessionUserId]
             );
+
+            if (!users.length) {
+                return res.status(401).send(
+                    'Your account could not be verified. Please log in again.'
+                );
+            }
+
+            const savedCustomer = users[0];
+
+            customerEmail = String(
+                savedCustomer.email || ''
+            ).trim();
+
+            customerName = savedCustomer.username || '';
+            customerPhone = savedCustomer.phone_number || '';
+
+            if (!customerAddress) {
+                customerAddress = String(
+                    savedCustomer.address || ''
+                ).trim();
+            }
         }
 
-        const product = rows[0];
-        const productId = Number(product.id);
-        const price = Number(product.price);
-        const priceInKobo = Math.round(price * 100);
-
-        if (
-            !Number.isFinite(price) ||
-            price < 0 ||
-            !Number.isSafeInteger(priceInKobo)
-        ) {
+        if (!customerEmail) {
             return res.status(400).send(
-                `Invalid price for ${product.name}.`
+                'Please provide your email address.'
             );
         }
 
-        const previous = quantitiesByProduct.get(productId);
-
-        const combinedQuantity =
-            (previous?.quantity || 0) + quantity;
-
-        if (!Number.isSafeInteger(combinedQuantity)) {
+        if (!customerAddress) {
             return res.status(400).send(
-                'Invalid combined product quantity.'
+                'Please enter the full delivery address.'
             );
         }
 
-        quantitiesByProduct.set(productId, {
-            product,
-            quantity: combinedQuantity
-        });
-    }
+        const normalizedDeliveryOption =
+            normalizeDeliveryOption(deliveryOption);
 
-            // Validate combined quantities, including duplicate cart entries.
-            for (const { product, quantity } of quantitiesByProduct.values()) {
-                if (product.category === 'Caps' && quantity !== 1) {
+        const DELIVERY_SURCHARGES = {
+            standard: 0,
+            express: 2000
+        };
+
+        const normalizedSurcharge =
+            DELIVERY_SURCHARGES[normalizedDeliveryOption];
+
+        if (normalizedSurcharge === undefined) {
+            return res.status(400).send(
+                'Invalid delivery option.'
+            );
+        }
+
+        let subtotalInKobo = 0;
+
+        const connection = await db.promise().getConnection();
+
+        try {
+            const quantities = new Map();
+
+            for (const item of cartParsed) {
+                const rawId =
+                    item.productId ??
+                    item.product_id ??
+                    item.id;
+
+                const id = Number(rawId);
+
+                const code =
+                    item.productCode ||
+                    item.product_code;
+
+                const quantity = Number(item.quantity ?? 1);
+                const variantId = getVariantId(item);
+
+                if (
+                    !Number.isSafeInteger(quantity) ||
+                    quantity < 1
+                ) {
+                    return res.status(400).send(
+                        'Invalid product quantity.'
+                    );
+                }
+
+                let rows = [];
+
+                if (
+                    rawId &&
+                    Number.isSafeInteger(id) &&
+                    id > 0
+                ) {
+                    [rows] = await connection.execute(
+                        `SELECT id, name, category, price,
+                                stock_quantity, is_active
+                         FROM products
+                         WHERE id = ?`,
+                        [id]
+                    );
+                } else if (code) {
+                    [rows] = await connection.execute(
+                        `SELECT id, name, category, price,
+                                stock_quantity, is_active
+                         FROM products
+                         WHERE product_code = ?`,
+                        [String(code)]
+                    );
+                } else {
+                    return res.status(400).send(
+                        'A cart item is missing its product ID or product code.'
+                    );
+                }
+
+                if (
+                    rows.length !== 1 ||
+                    Number(rows[0].is_active) !== 1
+                ) {
+                    return res.status(409).send(
+                        'A product is unavailable. Please refresh your cart.'
+                    );
+                }
+
+                const product = rows[0];
+                const productId = Number(product.id);
+
+                // Normalize the ID so the reservation helper can use it.
+                item.productId = productId;
+
+                let price;
+                let availableStock;
+
+                if (variantId !== null) {
+                    const [variants] = await connection.execute(
+                        `SELECT id, product_id, size, price, stock_quantity
+                         FROM product_variants
+                         WHERE id = ? AND product_id = ?`,
+                        [variantId, productId]
+                    );
+
+                    if (variants.length !== 1) {
+                        return res.status(409).send(
+                            `The selected size for ${product.name} is unavailable.`
+                        );
+                    }
+
+                    const variant = variants[0];
+
+                    const submittedSize =
+                        item.productSize ??
+                        item.product_size ??
+                        item.size;
+
+                    if (
+                        submittedSize &&
+                        String(submittedSize).trim() !==
+                            String(variant.size)
+                    ) {
+                        return res.status(409).send(
+                            `The selected size for ${product.name} has changed. Please refresh your cart.`
+                        );
+                    }
+
+                    item.variantId = Number(variant.id);
+                    item.productSize = String(variant.size);
+
+                    price = Number(variant.price);
+                    availableStock = Number(
+                        variant.stock_quantity
+                    );
+                } else {
+                    const [variants] = await connection.execute(
+                        `SELECT id
+                         FROM product_variants
+                         WHERE product_id = ?
+                         LIMIT 1`,
+                        [productId]
+                    );
+
+                    if (variants.length) {
+                        return res.status(409).send(
+                            `Please select a size for ${product.name}.`
+                        );
+                    }
+
+                    price = Number(product.price);
+                    availableStock = Number(
+                        product.stock_quantity
+                    );
+
+                    item.variantId = null;
+                }
+
+                if (
+                    !Number.isFinite(price) ||
+                    price < 0
+                ) {
+                    return res.status(400).send(
+                        `Invalid price for ${product.name}.`
+                    );
+                }
+
+                const priceInKobo = Math.round(price * 100);
+
+                if (!Number.isSafeInteger(priceInKobo)) {
+                    return res.status(400).send(
+                        `Invalid price for ${product.name}.`
+                    );
+                }
+
+                const key =
+                    `${productId}:${variantId || 'product'}`;
+
+                const previous = quantities.get(key);
+
+                const combinedQuantity =
+                    (previous?.quantity || 0) + quantity;
+
+                if (!Number.isSafeInteger(combinedQuantity)) {
+                    return res.status(400).send(
+                        'Invalid combined product quantity.'
+                    );
+                }
+
+                quantities.set(key, {
+                    product,
+                    priceInKobo,
+                    availableStock,
+                    quantity: combinedQuantity
+                });
+            }
+
+            for (const entry of quantities.values()) {
+                const {
+                    product,
+                    priceInKobo,
+                    availableStock,
+                    quantity
+                } = entry;
+
+                if (isCaps(product) && quantity !== 1) {
                     return res.status(409).send(
                         `Caps are unique items. Quantity must be one for ${product.name}.`
                     );
                 }
 
-                if (Number(product.stock_quantity) < quantity) {
+                if (availableStock < quantity) {
                     return res.status(409).send(
                         `${product.name} is unavailable in the requested quantity.`
                     );
                 }
-
-                const priceInKobo = Math.round(Number(product.price) * 100);
 
                 subtotalInKobo += priceInKobo * quantity;
 
@@ -997,10 +1490,10 @@ try {
             !Number.isSafeInteger(amountInKobo) ||
             amountInKobo <= 0
         ) {
-            return res.status(400).send('Invalid payment amount.');
+            return res.status(400).send(
+                'Invalid payment amount.'
+            );
         }
-
-        const amountInNaira = amountInKobo / 100;
 
         let safeReturnUrl = returnUrl || '/products';
 
@@ -1014,54 +1507,63 @@ try {
 
         reservationToken = createReservationToken();
 
-        // Atomically reduce stock and record the reservation.
-        await reserveInventory(reservationToken, cartParsed);
-
-        const paymentData = await paystackService.initializeTransaction(
-            String(email).trim(),
-            amountInKobo,
-            cartParsed,
-            normalizedDeliveryOption,
-            normalizedSurcharge,
-            safeReturnUrl,
-            String(deliveryAddress).trim(),
-            req.session?.user?.username || '',
-            req.session?.user?.id || null,
-            req.session?.user?.phone_number || '',
-            reservationToken
+        await reserveInventory(
+            reservationToken,
+            cartParsed
         );
+
+        const paymentData =
+            await paystackService.initializeTransaction(
+                customerEmail,
+                amountInKobo,
+                cartParsed,
+                normalizedDeliveryOption,
+                normalizedSurcharge,
+                safeReturnUrl,
+                customerAddress,
+                customerName,
+                isLoggedIn ? sessionUserId : null,
+                customerPhone,
+                reservationToken
+            );
 
         paymentInitialized = true;
 
-        if (!paymentData?.authorization_url || !paymentData?.reference) {
-            throw new Error('Paystack returned an incomplete initialization response.');
+        if (
+            !paymentData?.authorization_url ||
+            !paymentData?.reference
+        ) {
+            throw new Error(
+                'Paystack returned an incomplete initialization response.'
+            );
         }
 
-        // Metadata also carries the token, so callback/webhook can locate it.
         try {
             await linkReservationToPayment(
                 reservationToken,
                 paymentData.reference
             );
         } catch (linkError) {
-            // Do not release stock here: Paystack has already initialized.
             console.error(
                 'Could not link reservation reference; preserving reservation:',
                 linkError.message
             );
         }
 
-        console.log('Paystack payment initialized:', paymentData.reference);
+        console.log(
+            'Paystack payment initialized:',
+            paymentData.reference
+        );
+
         return res.redirect(paymentData.authorization_url);
     } catch (error) {
         console.error(
             'Paystack initialization error:',
-            error.response?.data || error.stack || error.message
+            error.response?.data ||
+            error.stack ||
+            error.message
         );
 
-        // A definite client-side rejection from Paystack can release stock.
-        // For network errors or server errors, the transaction may have been
-        // created even if the response was lost; keep the reservation for review.
         if (
             reservationToken &&
             !paymentInitialized &&
@@ -1091,22 +1593,32 @@ try {
 
 exports.handlePaystackCallback = async (req, res) => {
     try {
-        const reference = String(req.query.reference || '').trim();
+        const reference = String(
+            req.query.reference || ''
+        ).trim();
 
         if (!reference) {
             return res.render('failure', {
-                data: { status: 'error', reference: '' }
+                data: {
+                    status: 'error',
+                    reference: ''
+                }
             });
         }
 
-        const paymentData = await paystackService.verifyTransaction(reference);
+        const paymentData =
+            await paystackService.verifyTransaction(reference);
 
-        const metadata = parsePaystackMetadata(paymentData.metadata || {});
+        const metadata = parsePaystackMetadata(
+            paymentData.metadata || {}
+        );
+
         const cart = normalizeCart(metadata.cart);
-        const token = String(metadata.reservationToken || '').trim();
+        const token = String(
+            metadata.reservationToken || ''
+        ).trim();
 
         if (paymentData.status !== 'success') {
-            // Do not release a payment that is still pending.
             if (
                 token &&
                 ['failed', 'abandoned'].includes(
@@ -1116,10 +1628,17 @@ exports.handlePaystackCallback = async (req, res) => {
                 await releaseReservation(token);
             }
 
-            return res.render('failure', { data: paymentData });
+            return res.render('failure', {
+                data: paymentData
+            });
         }
 
-        await processVerifiedPaymentStock(paymentData, metadata, cart);
+        await processVerifiedPaymentStock(
+            paymentData,
+            metadata,
+            cart
+        );
+
         await savePaidOrder(paymentData, metadata);
 
         await sendReceiptOnce(paymentData, {
@@ -1139,7 +1658,11 @@ exports.handlePaystackCallback = async (req, res) => {
 
         return req.session.save(error => {
             if (error) {
-                console.error('Session save failed:', error.message);
+                console.error(
+                    'Session save failed:',
+                    error.message
+                );
+
                 return res.status(500).send(
                     'Payment was successful, but the session could not be preserved. Please return to the shop.'
                 );
@@ -1153,7 +1676,9 @@ exports.handlePaystackCallback = async (req, res) => {
     } catch (error) {
         console.error(
             'Paystack callback error:',
-            error.response?.data || error.stack || error.message
+            error.response?.data ||
+            error.stack ||
+            error.message
         );
 
         return res.render('failure', {
@@ -1171,29 +1696,63 @@ exports.handlePaystackCallback = async (req, res) => {
 
 exports.handlePaystackWebhook = async (req, res) => {
     try {
+        const secret = process.env.PAYSTACK_SECRET_KEY;
+        const signature = req.headers["x-paystack-signature"];
+
+        if (
+            !secret ||
+            !Buffer.isBuffer(req.rawBody) ||
+            typeof signature !== "string" ||
+            !/^[a-f0-9]{128}$/i.test(signature)
+        ) {
+            return res.sendStatus(401);
+        }
+
+        const expectedSignature = crypto
+            .createHmac("sha512", secret)
+            .update(req.rawBody)
+            .digest();
+
+        const receivedSignature = Buffer.from(signature, "hex");
+
+        if (!crypto.timingSafeEqual(expectedSignature, receivedSignature)) {
+            return res.sendStatus(401);
+        }
+
         const event = req.body || {};
 
         if (event.event !== 'charge.success') {
             return res.sendStatus(200);
         }
 
-        const reference = String(event.data?.reference || '').trim();
+        const reference = String(
+            event.data?.reference || ''
+        ).trim();
 
         if (!reference) {
             return res.sendStatus(200);
         }
 
-        // Verify independently with Paystack; do not trust the webhook body.
-        const paymentData = await paystackService.verifyTransaction(reference);
+        // Verify independently with Paystack.
+        const paymentData =
+            await paystackService.verifyTransaction(reference);
 
         if (paymentData.status !== 'success') {
             return res.sendStatus(200);
         }
 
-        const metadata = parsePaystackMetadata(paymentData.metadata || {});
+        const metadata = parsePaystackMetadata(
+            paymentData.metadata || {}
+        );
+
         const cart = normalizeCart(metadata.cart);
 
-        await processVerifiedPaymentStock(paymentData, metadata, cart);
+        await processVerifiedPaymentStock(
+            paymentData,
+            metadata,
+            cart
+        );
+
         await savePaidOrder(paymentData, metadata);
 
         await sendReceiptOnce(paymentData, {
@@ -1201,12 +1760,18 @@ exports.handlePaystackWebhook = async (req, res) => {
             cart
         });
 
-        console.log('Paystack webhook processing completed:', reference);
+        console.log(
+            'Paystack webhook processing completed:',
+            reference
+        );
+
         return res.sendStatus(200);
     } catch (error) {
         console.error(
             'Paystack webhook error:',
-            error.response?.data || error.stack || error.message
+            error.response?.data ||
+            error.stack ||
+            error.message
         );
 
         return res.sendStatus(500);

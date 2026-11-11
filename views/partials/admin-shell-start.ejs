@@ -1,174 +1,4 @@
-﻿<style>
-    body.admin-page {
-        margin: 0;
-        padding: 0;
-        background: #f4f6f9;
-        color: #222;
-        font-family: Arial, sans-serif;
-    }
-
-    .admin-layout {
-        min-height: 100vh;
-    }
-
-    .admin-sidebar {
-        position: fixed;
-        inset: 0 auto 0 0;
-        width: 245px;
-        padding: 24px 18px;
-        box-sizing: border-box;
-        background: #111827;
-        color: #fff;
-        z-index: 1001;
-        overflow-y: auto;
-    }
-
-    .admin-sidebar .brand {
-        font-size: 23px;
-        font-weight: bold;
-        margin-bottom: 8px;
-    }
-
-    .admin-sidebar .sidebar-subtitle {
-        color: #9ca3af;
-        font-size: 13px;
-        margin-bottom: 30px;
-    }
-
-    .admin-sidebar .nav-label {
-        color: #9ca3af;
-        font-size: 11px;
-        text-transform: uppercase;
-        margin: 22px 10px 9px;
-    }
-
-    .admin-sidebar nav a {
-        display: block;
-        padding: 12px;
-        margin-bottom: 5px;
-        border-radius: 7px;
-        color: #d1d5db;
-        text-decoration: none;
-        font-size: 14px;
-    }
-
-    .admin-sidebar nav a:hover,
-    .admin-sidebar nav a.active {
-        background: #263449;
-        color: #fff;
-    }
-
-    .admin-main {
-        width: calc(100% - 245px);
-        min-width: 0;
-        min-height: 100vh;
-        margin-left: 245px;
-        padding: 24px;
-        overflow-x: hidden;
-    }
-
-    .admin-main .page {
-        width: 100%;
-        max-width: 100%;
-        margin: 0;
-    }
-
-    .admin-shared-header {
-        min-height: 76px;
-        padding: 14px 28px;
-        box-sizing: border-box;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 15px;
-        background: #fff;
-        border-bottom: 1px solid #e5e7eb;
-    }
-
-    .admin-shared-header h1 {
-        margin: 0;
-        font-size: 22px;
-        color: #111827;
-    }
-
-    .admin-shared-user {
-        color: #4b5563;
-        font-size: 13px;
-        text-align: right;
-    }
-
-    .admin-shared-toggle {
-        display: none;
-        width: 42px;
-        height: 42px;
-        border: 0;
-        border-radius: 8px;
-        background: #263449;
-        color: white;
-        font-size: 22px;
-        cursor: pointer;
-    }
-
-    .admin-shared-backdrop {
-        display: none;
-    }
-
-    @media (max-width: 760px) {
-        .admin-sidebar {
-            width: 280px;
-            max-width: 85vw;
-            transform: translateX(-105%);
-            transition: transform .25s ease;
-            box-shadow: 8px 0 25px rgba(0,0,0,.18);
-        }
-
-        .admin-sidebar.admin-sidebar-open {
-            transform: translateX(0);
-        }
-
-        .admin-main {
-            width: 100%;
-            min-width: 0;
-            margin-left: 0;
-            padding: 16px;
-            overflow-x: hidden;
-        }
-
-    .admin-main .page {
-        width: 100%;
-        max-width: 100%;
-        margin: 0;
-    }
-
-        .admin-shared-header {
-            justify-content: flex-start;
-            padding: 14px 16px;
-        }
-
-        .admin-shared-toggle {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .admin-shared-user {
-            margin-left: auto;
-        }
-
-        .admin-shared-backdrop.admin-backdrop-open {
-            display: block;
-            position: fixed;
-            inset: 0;
-            background: rgba(15,23,42,.55);
-            z-index: 1000;
-        }
-
-        body.admin-menu-open {
-            overflow: hidden;
-        }
-    }
-</style>
+﻿<link rel="stylesheet" href="/admin.css">
 
 <div class="admin-layout">
     <aside class="admin-sidebar" id="shared-admin-sidebar">
@@ -181,7 +11,7 @@
             <a href="/admin/orders" class="<%= adminActivePage === 'orders' ? 'active' : '' %>">Orders</a>
             <a href="/admin/payments" class="<%= adminActivePage === 'payments' ? 'active' : '' %>">Payments</a>
             <a href="/admin/deliveries" class="<%= adminActivePage === 'deliveries' ? 'active' : '' %>">Deliveries</a>
-            <a href="/admin/order-requests" class="<%= adminActivePage === 'requests' ? 'active' : '' %>">Order Requests</a>
+            <a href="/admin/order-requests" class="<%= adminActivePage === 'order-requests' ? 'active' : '' %>">Order Requests</a>
 
             <div class="nav-label">Management</div>
             <a href="/admin/products" class="<%= adminActivePage === 'products' ? 'active' : '' %>">Products & Stock</a>
@@ -190,6 +20,7 @@
             <a href="/admin/categories" class="<%= adminActivePage === 'categories' ? 'active' : '' %>">Categories</a>
             <a href="/admin/customers" class="<%= adminActivePage === 'customers' ? 'active' : '' %>">Customers</a>
             <a href="/admin/services" class="<%= adminActivePage === 'services' ? 'active' : '' %>">Cap Services</a>
+            <a href="/admin/revenue" class="<%= adminActivePage === 'revenue' ? 'active' : '' %>">Revenue</a>
         </nav>
     </aside>
 
@@ -211,6 +42,8 @@
                 <strong><%= admin.username %></strong>
             </div>
         </header>
+
+
 
 
 

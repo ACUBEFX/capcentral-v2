@@ -1,85 +1,241 @@
-﻿
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CapCentral | <%= title %></title>
-  <style>
-    *{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f4f6fb;color:#1e293b}
-    .top{display:flex;justify-content:space-between;align-items:center;gap:14px;background:#fff;border-bottom:1px solid #e2e8f0;padding:20px 28px}
-    h1{font-size:22px;margin:0 0 6px}.muted{color:#64748b;font-size:13px;line-height:1.5}
-    .button{display:inline-block;background:#172554;color:white;text-decoration:none;padding:10px 14px;border-radius:7px;font-weight:600;font-size:13px}
-    main{padding:26px;max-width:1600px;margin:auto}.summary{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:18px}
-    .total{font-size:28px;font-weight:700;color:#15803d;margin-top:8px}.table-wrap{overflow:auto;background:#fff;border:1px solid #e2e8f0;border-radius:12px}
-    table{width:100%;border-collapse:collapse;min-width:760px}th,td{text-align:left;padding:12px 14px;border-bottom:1px solid #e9edf2;font-size:13px;vertical-align:top;max-width:360px;overflow-wrap:anywhere}
-    th{background:#f8fafc;white-space:nowrap;position:sticky;top:0}tbody tr:hover{background:#f8fafc}.empty{text-align:center;padding:30px;color:#64748b}
-    .error{background:#fde8e8;color:#942b2b;padding:14px;border-radius:8px;margin-bottom:18px}
-    .notice{background:#e5f7eb;color:#176337;padding:14px;border-radius:8px;margin-bottom:18px}
-    .status-form{display:flex;gap:8px;align-items:center;min-width:220px}
-    .status-form select{padding:8px;border:1px solid #cbd5e1;border-radius:6px;background:white;max-width:180px}
-    .status-form button{border:0;border-radius:6px;padding:9px 11px;background:#172554;color:white;font-weight:600;cursor:pointer;white-space:nowrap}
-    .status-cell{min-width:250px}
-    .backlinks{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}.backlinks a{color:#172554;font-size:13px}
-    @media(max-width:650px){.top{padding:16px;align-items:flex-start;flex-direction:column}main{padding:14px}.summary{padding:16px}}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CapCentral | <%= title %></title>
+    <style>
+        .records-page {
+            width: 100%;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        .records-description {
+            color: #64748b;
+            font-size: 13px;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+        .summary {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 18px;
+        }
+        .total {
+            font-size: 28px;
+            font-weight: 700;
+            color: #263449;
+            margin-top: 8px;
+        }
+        .table-wrap {
+            overflow: auto;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            width: 100%;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 760px;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px 14px;
+            border-bottom: 1px solid #e9edf2;
+            font-size: 13px;
+            vertical-align: top;
+            max-width: 360px;
+            overflow-wrap: anywhere;
+        }
+        th {
+            background: #f8fafc;
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+        }
+        tbody tr:hover { background: #f8fafc; }
+        .empty {
+            text-align: center;
+            padding: 30px;
+            color: #64748b;
+        }
+        .error {
+            background: #fde8e8;
+            color: #942b2b;
+            padding: 14px;
+            border-radius: 8px;
+            margin-bottom: 18px;
+        }
+        .notice {
+            background: #e5f7eb;
+            color: #176337;
+            padding: 14px;
+            border-radius: 8px;
+            margin-bottom: 18px;
+        }
+        .status-form {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            min-width: 220px;
+        }
+        .status-form select {
+            padding: 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: white;
+            max-width: 180px;
+        }
+        .status-form button {
+            border: 0;
+            border-radius: 6px;
+            padding: 9px 11px;
+            background: #263449;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .status-cell { min-width: 250px; }
+        .backlinks {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 0 0 18px;
+        }
+        .backlinks a {
+            color: #263449;
+            font-size: 13px;
+        }
+        @media(max-width: 650px) {
+            .summary { padding: 16px; }
+            .total { font-size: 24px; }
+            .status-form {
+                align-items: stretch;
+                flex-direction: column;
+                min-width: 130px;
+            }
+            .status-form select,
+            .status-form button {
+                width: 100%;
+                max-width: none;
+            }
+        }
+    </style>
 </head>
-<body>
-  <header class="top">
-    <div><h1><%= title %></h1><div class="muted"><%= description %></div></div>
-    <div class="muted">Signed in as <strong><%= admin.username %></strong><br><a href="/admin">Back to dashboard</a></div>
-  </header>
-  <main>
+<body class="admin-page">
+
+<%
+    const recordTitle = String(title || '').toLowerCase();
+    const activeRecordPage = recordTitle.includes('order')
+        ? 'orders'
+        : recordTitle.includes('payment')
+            ? 'payments'
+            : recordTitle.includes('service')
+                ? 'services'
+                : recordTitle.includes('revenue')
+                    ? 'revenue'
+                    : '';
+%>
+
+<%- include('../partials/admin-shell-start', {
+    admin: admin,
+    adminPageTitle: title,
+    adminActivePage: activeRecordPage
+}) %>
+
+<main class="records-page">
+    <div class="records-description"><%= description %></div>
+
     <nav class="backlinks" aria-label="Admin record pages">
-      <a href="/admin/orders">Orders</a><span>&middot;</span>
-      <a href="/admin/deliveries">Deliveries</a><span>&middot;</span>
-      <a href="/admin/customers">Customers</a><span>&middot;</span>
-      <a href="/admin/payments">Successful payments</a><span>&middot;</span>
-      <a href="/admin/services">Cap services</a><span>&middot;</span>
-      <a href="/admin/revenue">Recorded revenue</a>
+        <a href="/admin/orders">Orders</a><span>&middot;</span>
+        <a href="/admin/deliveries">Deliveries</a><span>&middot;</span>
+        <a href="/admin/customers">Customers</a><span>&middot;</span>
+        <a href="/admin/payments">Successful payments</a><span>&middot;</span>
+        <a href="/admin/services">Cap services</a><span>&middot;</span>
+        <a href="/admin/revenue">Recorded revenue</a>
     </nav>
-    <% if (message) { %><div class="notice"><%= message %></div><% } %>
-    <% if (queryError) { %><div class="error"><%= queryError %></div><% } %>
-    <% if (error) { %><div class="error"><%= error %></div><% } %>
-    <% if (totalRevenue !== null) { %>
-      <section class="summary">
-        <div class="muted">Total from successful payment records</div>
-        <div class="total">₦<%= Number(totalRevenue).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2}) %></div>
-        <div class="muted"><%= records.length.toLocaleString() %> successful payment record(s)</div>
-      </section>
+
+    <% if (message) { %>
+        <div class="notice"><%= message %></div>
     <% } %>
+
+    <% if (queryError) { %>
+        <div class="error"><%= queryError %></div>
+    <% } %>
+
+    <% if (error) { %>
+        <div class="error"><%= error %></div>
+    <% } %>
+
+    <% if (totalRevenue !== null) { %>
+        <section class="summary">
+            <div class="records-description">Total from successful payment records</div>
+            <div class="total">₦<%= Number(totalRevenue).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2}) %></div>
+            <div class="records-description"><%= records.length.toLocaleString() %> successful payment record(s)</div>
+        </section>
+    <% } %>
+
     <section class="table-wrap">
-      <table>
-        <thead><tr><% columns.forEach(column => { %><th><%= column.label %></th><% }); %><% if (statusEditor) { %><th>Update status</th><% } %></tr></thead>
-        <tbody>
-          <% if (!records.length) { %>
-            <tr><td class="empty" colspan="<%= Math.max(columns.length + (statusEditor ? 1 : 0),1) %>"><%= error ? 'Records could not be loaded.' : 'No records found.' %></td></tr>
-          <% } else { %>
-            <% records.forEach(record => { %>
-              <tr>
-                <% columns.forEach(column => { let value = record[column.key]; if (value instanceof Date) value = value.toLocaleString('en-NG'); else if (value !== null && typeof value === 'object') value = JSON.stringify(value); else if (value === null || value === undefined || value === '') value = '-'; else value = String(value); %><td><%= value %></td><% }); %>
-                <% if (statusEditor) { const recordId = record[statusEditor.primaryKey]; const currentStatus = String(record[statusEditor.statusColumn] || ''); %>
-                  <td class="status-cell">
-                    <form class="status-form" method="POST" action="<%= statusEditor.actionPath %>/<%= encodeURIComponent(String(recordId)) %>/status">
-                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                      <select name="status" aria-label="New status for record <%= recordId %>" required>
-                        <% statusEditor.allowedStatuses.forEach(statusOption => { %>
-                          <option value="<%= statusOption %>" <%= statusOption === currentStatus ? 'selected' : '' %>><%= statusOption.replace(/[-_]/g, ' ').replace(/\b\w/g, char => char.toUpperCase()) %></option>
-                        <% }); %>
-                      </select>
-                      <button type="submit">Update</button>
-                    </form>
-                  </td>
+        <table>
+            <thead>
+                <tr>
+                    <% columns.forEach(column => { %>
+                        <th><%= column.label %></th>
+                    <% }); %>
+                    <% if (statusEditor) { %>
+                        <th>Update status</th>
+                    <% } %>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (!records.length) { %>
+                    <tr>
+                        <td class="empty" colspan="<%= Math.max(columns.length + (statusEditor ? 1 : 0),1) %>">
+                            <%= error ? 'Records could not be loaded.' : 'No records found.' %>
+                        </td>
+                    </tr>
+                <% } else { %>
+                    <% records.forEach(record => { %>
+                        <tr>
+                            <% columns.forEach(column => {
+                                let value = record[column.key];
+                                if (value instanceof Date) value = value.toLocaleString('en-NG');
+                                else if (value !== null && typeof value === 'object') value = JSON.stringify(value);
+                                else if (value === null || value === undefined || value === '') value = '-';
+                                else value = String(value);
+                            %>
+                                <td><%= value %></td>
+                            <% }); %>
+
+                            <% if (statusEditor) {
+                                const recordId = record[statusEditor.primaryKey];
+                                const currentStatus = String(record[statusEditor.statusColumn] || '');
+                            %>
+                                <td class="status-cell">
+                                    <form class="status-form" method="POST" action="<%= statusEditor.actionPath %>/<%= encodeURIComponent(String(recordId)) %>/status">
+                                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                        <select name="status" aria-label="New status for record <%= recordId %>" required>
+                                            <% statusEditor.allowedStatuses.forEach(statusOption => { %>
+                                                <option value="<%= statusOption %>" <%= statusOption === currentStatus ? 'selected' : '' %>>
+                                                    <%= statusOption.replace(/[-_]/g, ' ').replace(/\b\w/g, char => char.toUpperCase()) %>
+                                                </option>
+                                            <% }); %>
+                                        </select>
+                                        <button type="submit">Update</button>
+                                    </form>
+                                </td>
+                            <% } %>
+                        </tr>
+                    <% }); %>
                 <% } %>
-              </tr>
-            <% }); %>
-          <% } %>
-        </tbody>
-      </table>
+            </tbody>
+        </table>
     </section>
-  </main>
-</body>
-</html>
+</main>
 
-
+<%- include('../partials/admin-shell-end') %>
 

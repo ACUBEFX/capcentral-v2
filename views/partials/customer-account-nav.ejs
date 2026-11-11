@@ -1,0 +1,63 @@
+﻿<%
+    const currentAccountPage = activePage || '';
+%>
+
+<div class="cc-account-header">
+    <a href="/products" class="cc-account-logo">
+        <img src="/images/logo.png" alt="CapCentral Logo"
+             onerror="this.style.display='none'">
+        <span>CapCentral</span>
+    </a>
+
+    <a href="/profile" class="cc-account-header-link">
+        <i class="fas fa-user-circle"></i> My Account
+    </a>
+</div>
+
+<div class="cc-account-nav">
+    <div class="cc-account-nav-inner">
+        <button type="button"
+                class="cc-account-menu-toggle"
+                id="cc-account-menu-toggle"
+                aria-label="Toggle account navigation"
+                aria-expanded="false"
+                aria-controls="cc-account-nav-links">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+
+        <ul class="cc-account-nav-links" id="cc-account-nav-links">
+            <li>
+                <a href="/products"
+                   class="<%= currentAccountPage === 'shop' ? 'active' : '' %>">
+                    <i class="fas fa-store"></i> Shop Products
+                </a>
+            </li>
+            <li>
+                <a href="/profile"
+                   class="<%= currentAccountPage === 'profile' ? 'active' : '' %>">
+                    <i class="fas fa-user"></i> My Profile
+                </a>
+            </li>
+            <li>
+                <a href="/my-deliveries"
+                   class="<%= currentAccountPage === 'deliveries' ? 'active' : '' %>">
+                    <i class="fas fa-truck"></i> My Deliveries
+                </a>
+            </li>
+            <li>
+                <a href="/index1.html?openCart=1"
+                   class="<%= currentAccountPage === 'cart' ? 'active' : '' %>">
+                    <i class="fas fa-shopping-cart"></i> My Cart
+                </a>
+            </li>
+            <li>
+                <a href="/services"
+                   class="<%= currentAccountPage === 'services' ? 'active' : '' %>">
+                    <i class="fas fa-concierge-bell"></i> Services
+                </a>
+            </li>
+        </ul>
+    </div>
+</div>

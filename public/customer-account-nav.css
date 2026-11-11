@@ -1,0 +1,184 @@
+﻿/* CapCentral shared customer account navigation */
+.cc-account-header {
+    min-height: 76px;
+    padding: 10px 5%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    background: #000;
+    color: #fff;
+}
+
+.cc-account-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    color: #fff;
+    text-decoration: none;
+}
+
+.cc-account-logo img {
+    width: 62px;
+    height: 55px;
+    object-fit: contain;
+}
+
+.cc-account-logo span {
+    font-family: 'Lora', serif;
+    font-size: 23px;
+    font-weight: 700;
+}
+
+.cc-account-header-link {
+    color: #fff;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.cc-account-header-link:hover {
+    color: #ccc;
+}
+
+.cc-account-nav {
+    position: relative;
+    z-index: 100;
+    width: 100%;
+    background: #555;
+    box-shadow: 0 4px 12px rgba(0,0,0,.12);
+}
+
+.cc-account-nav-inner {
+    width: 100%;
+    max-width: 1500px;
+    min-height: 62px;
+    margin: auto;
+    padding: 0 5%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cc-account-nav-links {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    list-style: none;
+}
+
+.cc-account-nav-links a {
+    min-height: 44px;
+    padding: 12px 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    border-radius: 8px;
+    color: #fff;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: background .2s ease, color .2s ease;
+}
+
+.cc-account-nav-links a:hover {
+    background: rgba(255,255,255,.12);
+    color: #fff;
+}
+
+.cc-account-nav-links a.active {
+    background: #fff;
+    color: #222;
+}
+
+.cc-account-menu-toggle {
+    display: none;
+    width: 44px;
+    height: 42px;
+    padding: 9px;
+    border: 1px solid rgba(255,255,255,.4);
+    border-radius: 7px;
+    background: transparent;
+    cursor: pointer;
+}
+
+.cc-account-menu-toggle span {
+    display: block;
+    width: 24px;
+    height: 2px;
+    margin: 5px auto;
+    background: #fff;
+    border-radius: 2px;
+}
+
+@media (max-width: 760px) {
+    .cc-account-header {
+        min-height: 68px;
+        padding: 9px 18px;
+    }
+
+    .cc-account-logo img {
+        width: 48px;
+        height: 45px;
+    }
+
+    .cc-account-logo span {
+        font-size: 19px;
+    }
+
+    .cc-account-nav-inner {
+        min-height: 54px;
+        padding: 6px 18px;
+        justify-content: flex-end;
+    }
+
+    .cc-account-menu-toggle {
+        display: block;
+    }
+
+    .cc-account-nav-links {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        width: 100%;
+        padding: 12px 18px 18px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 5px;
+        background: #555;
+        box-shadow: 0 8px 15px rgba(0,0,0,.18);
+    }
+
+    .cc-account-nav-links.nav-active {
+        display: flex;
+    }
+
+    .cc-account-nav-links a {
+        width: 100%;
+        justify-content: flex-start;
+        padding: 12px 15px;
+    }
+}
+
+@media (max-width: 360px) {
+    .cc-account-header {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .cc-account-logo span {
+        font-size: 17px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cc-account-nav-links a {
+        transition: none;
+    }
+}
