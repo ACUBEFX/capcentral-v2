@@ -1,4 +1,4 @@
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const db = require('../models/database');
 const jwt = require('jsonwebtoken');
 const path = require ('path');
@@ -92,7 +92,7 @@ const login = async (req, res) => {
             }
 
             const user = results[0];
-            const isMatch = await bcrypt.compare(password, user.password);
+            const isMatch = await bcryptjs.compare(password, user.password);
 
             if (!isMatch) {
                 return res.status(400).send('Incorrect password.');
