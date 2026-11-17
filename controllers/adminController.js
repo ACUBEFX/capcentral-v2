@@ -965,3 +965,250 @@ exports.reviewOrderRequest = async (req, res) => {
     }
 };
 
+function parsePromoAdminInput(body) {
+    const code = String(body.code || '').trim().toUpperCase();
+    const discountType = String(body.discount_type || '').trim();
+    const discountValue = Number(body.discount_value);
+    const minOrderAmount = body.min_order_amount === ''
+        ? 0
+        : Number(body.min_order_amount);
+    const maxDiscount = body.max_discount === '' || body.max_discount == null
+        ? null
+        : Number(body.max_discount);
+    const usageLimit = body.usage_limit === '' || body.usage_limit == null
+        ? null
+        : Number(body.usage_limit);
+    const startsAt = normalizePromoDate(body.starts_at);
+    const expiresAt = normalizePromoDate(body.expires_at);
+
+    if (!/^[A-Z0-9_-]{2,50}$/.test(code)) {
+        throw new Error('Code must be 2 to 50 characters using letters, numbers, hyphens, or underscores.');
+    }
+
+    if (!['percentage', 'fixed'].includes(discountType)) {
+        throw new Error('Choose a valid discount type.');
+    }
+
+    if (!Number.isFinite(discountValue) || discountValue <= 0 ||
+        discountValue > 99999999.99 ||
+        (discountType === 'percentage' && discountValue > 100) ||
+        Math.round(discountValue * 100) !== discountValue * 100) {
+        throw new Error('Enter a valid discount value with up to two decimal places.');
+    }
+
+    if (!Number.isFinite(minOrderAmount) || minOrderAmount < 0 ||
+        minOrderAmount > 99999999.99 ||
+        Math.round(minOrderAmount * 100) !== minOrderAmount * 100) {
+        throw new Error('Enter a valid minimum order amount.');
+    }
+
+    if (maxDiscount !== null &&
+        (!Number.isFinite(maxDiscount) || maxDiscount <= 0 ||
+            maxDiscount > 99999999.99 ||
+            Math.round(maxDiscount * 100) !== maxDiscount * 100)) {
+        throw new Error('Maximum discount must be a positive amount with up to two decimal places.');
+    }
+
+    if (usageLimit !== null &&
+        (!Number.isSafeInteger(usageLimit) || usageLimit <= 0 || usageLimit > 4294967295)) {
+        throw new Error('Usage limit must be a positive whole number.');
+    }
+
+    if (startsAt && expiresAt && expiresAt < startsAt) {
+        throw new Error('Expiry must be after the start time.');
+    }
+
+    return {
+        code,
+        discountType,
+        discountValue,
+        minOrderAmount,
+        maxDiscount,
+        usageLimit,
+        startsAt,
+        expiresAt
+    };
+}
+
+function normalizePromoDate(value) {
+    const raw = String(value || '').trim();
+
+    if (!raw) return null;
+
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(raw) ||
+        !Number.isFinite(Date.parse(raw))) {
+        throw new Error('Enter valid start and expiry dates.');
+    }
+
+    return `${raw.replace('T', ' ')}:00`;
+}
+
+function promoAdminRedirect(res, key, message) {
+    return res.redirect(`/admin/promos?${key}=${encodeURIComponent(message)}`);
+}
+
+exports.promos = async (req, res) => {
+    try {
+        const [promos] = await db.promise().execute(
+            `SELECT p.*,
+                    (SELECT COUNT(*)
+                     FROM promo_usage_reservations r
+                     WHERE r.promo_code_id = p.id
+                       AND r.status = 'reserved') AS reserved_count
+             FROM promo_codes p
+             ORDER BY p.created_at DESC, p.id DESC`
+        );
+
+        return res.render('admin/promos', {
+            admin: req.admin,
+            promos,
+            message: req.query.message || '',
+            error: req.query.error || '',
+            csrfToken: res.locals.csrfToken
+        });
+    } catch (error) {
+        console.error('Admin promo list error:', error);
+        return res.status(500).send('Unable to load promotion codes.');
+    }
+};
+
+exports.createPromo = async (req, res) => {
+    try {
+        const promo = parsePromoAdminInput(req.body);
+
+        await db.promise().execute(
+            `INSERT INTO promo_codes
+                (code, discount_type, discount_value, min_order_amount,
+                 max_discount, starts_at, expires_at, usage_limit, is_active)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+            [
+                promo.code,
+                promo.discountType,
+                promo.discountValue.toFixed(2),
+                promo.minOrderAmount.toFixed(2),
+                promo.maxDiscount === null ? null : promo.maxDiscount.toFixed(2),
+                promo.startsAt,
+                promo.expiresAt,
+                promo.usageLimit
+            ]
+        );
+
+        return promoAdminRedirect(res, 'message', 'Promotion created.');
+    } catch (error) {
+        console.error('Admin promo creation error:', error);
+        const message = error.code === 'ER_DUP_ENTRY'
+            ? 'A promotion with that code already exists.'
+            : error.message || 'Unable to create promotion.';
+        return promoAdminRedirect(res, 'error', message);
+    }
+};
+
+exports.updatePromo = async (req, res) => {
+    const promoId = Number(req.params.id);
+    let connection;
+    let transactionStarted = false;
+
+    if (!Number.isSafeInteger(promoId) || promoId <= 0) {
+        return promoAdminRedirect(res, 'error', 'Invalid promotion.');
+    }
+
+    try {
+        const promo = parsePromoAdminInput(req.body);
+        connection = await db.promise().getConnection();
+        await connection.beginTransaction();
+        transactionStarted = true;
+
+        const [currentRows] = await connection.execute(
+            `SELECT id, usage_count
+             FROM promo_codes
+             WHERE id = ?
+             FOR UPDATE`,
+            [promoId]
+        );
+
+        if (!currentRows.length) {
+            throw new Error('Promotion not found.');
+        }
+
+        const [reservations] = await connection.execute(
+            `SELECT COUNT(*) AS reserved_count
+             FROM promo_usage_reservations
+             WHERE promo_code_id = ?
+               AND status = 'reserved'`,
+            [promoId]
+        );
+
+        if (Number(reservations[0].reserved_count) > 0) {
+            throw new Error('Wait for active checkouts to finish before editing this promotion.');
+        }
+
+        if (promo.usageLimit !== null &&
+            promo.usageLimit < Number(currentRows[0].usage_count)) {
+            throw new Error('Usage limit cannot be lower than completed redemptions.');
+        }
+
+        await connection.execute(
+            `UPDATE promo_codes
+             SET code = ?, discount_type = ?, discount_value = ?,
+                 min_order_amount = ?, max_discount = ?, starts_at = ?,
+                 expires_at = ?, usage_limit = ?
+             WHERE id = ?`,
+            [
+                promo.code,
+                promo.discountType,
+                promo.discountValue.toFixed(2),
+                promo.minOrderAmount.toFixed(2),
+                promo.maxDiscount === null ? null : promo.maxDiscount.toFixed(2),
+                promo.startsAt,
+                promo.expiresAt,
+                promo.usageLimit,
+                promoId
+            ]
+        );
+
+        await connection.commit();
+        transactionStarted = false;
+        return promoAdminRedirect(res, 'message', 'Promotion updated.');
+    } catch (error) {
+        if (connection && transactionStarted) {
+            await connection.rollback().catch(rollbackError => {
+                console.error('Promo update rollback error:', rollbackError.message);
+            });
+        }
+
+        console.error('Admin promo update error:', error);
+        const message = error.code === 'ER_DUP_ENTRY'
+            ? 'A promotion with that code already exists.'
+            : error.message || 'Unable to update promotion.';
+        return promoAdminRedirect(res, 'error', message);
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
+exports.togglePromo = async (req, res) => {
+    const promoId = Number(req.params.id);
+
+    if (!Number.isSafeInteger(promoId) || promoId <= 0) {
+        return promoAdminRedirect(res, 'error', 'Invalid promotion.');
+    }
+
+    try {
+        const [result] = await db.promise().execute(
+            `UPDATE promo_codes
+             SET is_active = IF(is_active = 1, 0, 1)
+             WHERE id = ?`,
+            [promoId]
+        );
+
+        if (!result.affectedRows) {
+            return promoAdminRedirect(res, 'error', 'Promotion not found.');
+        }
+
+        return promoAdminRedirect(res, 'message', 'Promotion status updated.');
+    } catch (error) {
+        console.error('Admin promo status error:', error);
+        return promoAdminRedirect(res, 'error', 'Unable to update promotion status.');
+    }
+};
+

@@ -208,6 +208,57 @@
             color: #007bff;
         }
 
+        .promo-entry {
+            display: flex;
+            gap: 8px;
+            margin: 18px 0 12px;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .promo-entry input {
+            flex: 1;
+            min-width: 0;
+            padding: 11px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 15px;
+        }
+
+        .promo-entry button {
+            padding: 0 16px;
+            border: 0;
+            border-radius: 8px;
+            background: #075fc5;
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .promo-message {
+            min-height: 20px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .promo-message.success {
+            color: #18723a;
+        }
+
+        .promo-message.error {
+            color: #b42318;
+        }
+
         /* FORM */
         .form-section {
             margin-top: 30px;
@@ -461,6 +512,21 @@
         <!-- TOTAL -->
         <div class="total-box">
 
+            <div class="promo-entry">
+                <label for="promoCode" class="sr-only">Promotion code</label>
+                <input
+                    type="text"
+                    id="promoCode"
+                    autocomplete="off"
+                    maxlength="50"
+                    placeholder="Enter promo code"
+                    aria-describedby="promoMessage"
+                >
+                <button type="button" id="applyPromoButton">Apply</button>
+            </div>
+
+            <div id="promoMessage" class="promo-message" role="status" aria-live="polite"></div>
+
             <div class="total-row">
 
                 <span>
@@ -471,6 +537,11 @@
                     ₦<%= Number(total).toLocaleString() %>
                 </span>
 
+            </div>
+
+            <div class="total-row" id="discountRow" hidden>
+                <span>Promotion discount</span>
+                <span id="discountAmount">−₦0</span>
             </div>
 
 
@@ -535,6 +606,8 @@
                 id="expressSurchargeInput"
                 value="0"
             >
+
+            <input type="hidden" name="promoCode" id="appliedPromoCode" value="">
 
             <input
                 type="hidden"
@@ -612,6 +685,8 @@
     const baseTotal =
         Number("<%= total %>");
 
+    let appliedDiscount = 0;
+
 
     const deliveryOptions =
         document.querySelectorAll(
@@ -648,6 +723,79 @@
             "expressSurchargeInput"
         );
 
+    const promoCodeInput = document.getElementById("promoCode");
+    const appliedPromoCode = document.getElementById("appliedPromoCode");
+    const applyPromoButton = document.getElementById("applyPromoButton");
+    const promoMessage = document.getElementById("promoMessage");
+    const discountRow = document.getElementById("discountRow");
+    const discountAmount = document.getElementById("discountAmount");
+
+    function refreshCheckoutTotal() {
+        const surcharge = Number(expressSurchargeInput.value) || 0;
+        const payableTotal = baseTotal - appliedDiscount + surcharge;
+
+        totalInput.value = payableTotal.toFixed(2);
+        finalTotal.textContent = "₦" + payableTotal.toLocaleString();
+    }
+
+    promoCodeInput.addEventListener("input", function () {
+        appliedDiscount = 0;
+        appliedPromoCode.value = "";
+        discountRow.hidden = true;
+        promoMessage.textContent = "";
+        promoMessage.className = "promo-message";
+        refreshCheckoutTotal();
+    });
+
+    applyPromoButton.addEventListener("click", async function () {
+        const code = promoCodeInput.value.trim();
+
+        if (!code) {
+            promoMessage.textContent = "Enter a promotion code.";
+            promoMessage.className = "promo-message error";
+            return;
+        }
+
+        applyPromoButton.disabled = true;
+        promoMessage.textContent = "Checking code…";
+        promoMessage.className = "promo-message";
+
+        try {
+            const formData = new URLSearchParams(
+                new FormData(document.getElementById("checkoutForm"))
+            );
+            formData.set("promoCode", code);
+
+            const response = await fetch("/checkout/promo", {
+                method: "POST",
+                headers: { "Accept": "application/json" },
+                body: formData
+            });
+            const result = await response.json();
+
+            if (!response.ok || !result.valid) {
+                throw new Error(result.message || "This promotion code could not be applied.");
+            }
+
+            appliedDiscount = result.discountAmount;
+            appliedPromoCode.value = result.code;
+            discountAmount.textContent = "−₦" + appliedDiscount.toLocaleString();
+            discountRow.hidden = false;
+            promoMessage.textContent = "Promotion applied.";
+            promoMessage.className = "promo-message success";
+            refreshCheckoutTotal();
+        } catch (error) {
+            appliedDiscount = 0;
+            appliedPromoCode.value = "";
+            discountRow.hidden = true;
+            refreshCheckoutTotal();
+            promoMessage.textContent = error.message || "Unable to check this promotion code.";
+            promoMessage.className = "promo-message error";
+        } finally {
+            applyPromoButton.disabled = false;
+        }
+    });
+
 
     deliveryOptions.forEach(
         option => {
@@ -666,21 +814,12 @@
                         ) || 0;
 
 
-                    const newTotal =
-                        baseTotal +
-                        surcharge;
-
-
                     deliveryOptionInput.value =
                         deliveryType;
 
 
                     expressSurchargeInput.value =
                         surcharge;
-
-
-                    totalInput.value =
-                        newTotal;
 
 
                     if (surcharge > 0) {
@@ -697,9 +836,7 @@
                     }
 
 
-                    finalTotal.textContent =
-                        "₦" +
-                        newTotal.toLocaleString();
+                    refreshCheckoutTotal();
 
                 }
             );

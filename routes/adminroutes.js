@@ -53,6 +53,10 @@ router.post('/admin/orders/:id/status', requireAdmin, adminController.updateOrde
 router.post('/admin/services/:id/status', requireAdmin, adminController.updateServiceStatus);
 router.get('/admin/revenue', requireAdmin, adminController.revenue);
 router.get('/admin/categories', requireAdmin, categoryController.listCategories);
+router.get('/admin/promos', requireAdmin, adminController.promos);
+router.post('/admin/promos', requireAdmin, adminController.createPromo);
+router.post('/admin/promos/:id/edit', requireAdmin, adminController.updatePromo);
+router.post('/admin/promos/:id/toggle', requireAdmin, adminController.togglePromo);
 router.post('/admin/categories', requireAdmin, categoryController.addCategory);
 router.post('/admin/categories/:id/toggle', requireAdmin, categoryController.toggleCategoryVisibility);
 router.post('/admin/categories/:id/delete', requireAdmin, categoryController.deleteCategory);

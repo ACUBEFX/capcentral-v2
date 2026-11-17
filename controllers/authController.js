@@ -1,4 +1,4 @@
-const bcrypt = require('bcryptjs');
+const bcryptjs = require('bcryptjs');
 const db = require('../models/database');
 const jwt = require('jsonwebtoken');
 const path = require ('path');
@@ -16,7 +16,7 @@ const signup = async (req, res) => {
             if (result.length > 0) return res.status(400).send('Email already exists.');
 
             // Hash password
-            const hashedPassword = await bcrypt.hash(password, 10);
+            const hashedPassword = await bcryptjs.hash(password, 10);
 
             const insertSql = 'INSERT INTO signup (username, email, password) VALUES (?, ?, ?)';
             db.query(insertSql, [username, email, hashedPassword], async (err, result) => {

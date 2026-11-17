@@ -20,7 +20,11 @@ exports.initializeTransaction = async (
     customerName = "",
     userId = null,
     customerPhone = "",
-    reservationToken = null
+    reservationToken = null,
+    promoCode = null,
+    promoId = null,
+    promoDiscountInKobo = 0,
+    reference = null
 ) => {
 
     const response = await axios.post(
@@ -28,6 +32,7 @@ exports.initializeTransaction = async (
         {
             email,
             amount,
+            reference,
 
             metadata: {
                 cart,
@@ -38,7 +43,10 @@ exports.initializeTransaction = async (
                 customerName,
                 userId,
                 customerPhone,
-                reservationToken
+                promoId,
+                promoDiscountInKobo,
+                reservationToken,
+                promoCode
             },
 
             callback_url:

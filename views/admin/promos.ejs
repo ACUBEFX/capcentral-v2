@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Promotions | CapCentral</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 24px; background: #f4f6f9; color: #222; font-family: Arial, sans-serif; }
+        .container { max-width: 1200px; margin: auto; }
+        .panel { padding: 22px; margin-bottom: 22px; border-radius: 10px; background: #fff; box-shadow: 0 2px 8px #0000000d; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+        label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 700; }
+        input, select { width: 100%; min-height: 40px; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; }
+        .button { display: inline-block; padding: 10px 14px; border: 0; border-radius: 6px; background: #172554; color: #fff; text-decoration: none; cursor: pointer; }
+        .button-secondary { background: #475569; }
+        .muted { color: #64748b; font-size: 13px; }
+        .notice { padding: 12px; margin-bottom: 16px; border-radius: 6px; }
+        .success { background: #dcfce7; color: #166534; }
+        .error { background: #fee2e2; color: #991b1b; }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 10px; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top; }
+        th { background: #f8fafc; white-space: nowrap; }
+        .promo-edit { min-width: 780px; }
+        .promo-edit .form-grid { grid-template-columns: repeat(4, minmax(150px, 1fr)); margin-bottom: 12px; }
+        .actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .status { display: inline-block; padding: 5px 9px; border-radius: 20px; font-size: 12px; }
+        .active { background: #dcfce7; color: #166534; }
+        .inactive { background: #fee2e2; color: #991b1b; }
+        @media (max-width: 600px) { body { padding: 14px; } .panel { padding: 14px; } }
+    </style>
+</head>
+<body class="admin-page">
+<%
+    function promoDateInput(value) {
+        if (!value) return '';
+        if (value instanceof Date) {
+            const pad = part => String(part).padStart(2, '0');
+            return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}T${pad(value.getHours())}:${pad(value.getMinutes())}`;
+        }
+        return String(value).replace(' ', 'T').slice(0, 16);
+    }
+%>
+<%- include('../partials/admin-shell-start', {
+    admin: admin,
+    adminPageTitle: 'Promotions',
+    adminActivePage: 'promos'
+}) %>
+<main class="container">
+    <p class="muted">Create discounts and control their dates, usage limits, and availability.</p>
+
+    <% if (message) { %><div class="notice success"><%= message %></div><% } %>
+    <% if (error) { %><div class="notice error"><%= error %></div><% } %>
+
+    <section class="panel">
+        <h2>Create promotion</h2>
+        <form action="/admin/promos" method="POST">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <div class="form-grid">
+                <div><label for="new-code">Code</label><input id="new-code" name="code" maxlength="50" required placeholder="e.g. WELCOME10"></div>
+                <div><label for="new-type">Discount type</label><select id="new-type" name="discount_type"><option value="percentage">Percentage</option><option value="fixed">Fixed amount (₦)</option></select></div>
+                <div><label for="new-value">Discount value</label><input id="new-value" name="discount_value" type="number" min="0.01" step="0.01" required></div>
+                <div><label for="new-minimum">Minimum order (₦)</label><input id="new-minimum" name="min_order_amount" type="number" min="0" step="0.01" value="0"></div>
+                <div><label for="new-maximum">Maximum discount (₦, optional)</label><input id="new-maximum" name="max_discount" type="number" min="0.01" step="0.01"></div>
+                <div><label for="new-start">Starts at (optional)</label><input id="new-start" name="starts_at" type="datetime-local"></div>
+                <div><label for="new-expiry">Expires at (optional)</label><input id="new-expiry" name="expires_at" type="datetime-local"></div>
+                <div><label for="new-limit">Usage limit (optional)</label><input id="new-limit" name="usage_limit" type="number" min="1" step="1"></div>
+            </div>
+            <p class="muted">Codes are converted to uppercase. Percentage discounts may be capped by the maximum discount.</p>
+            <button class="button" type="submit">Create promotion</button>
+        </form>
+    </section>
+
+    <section class="panel">
+        <h2>Existing promotions</h2>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Usage</th><th>Status</th><th>Edit promotion</th></tr></thead>
+                <tbody>
+                <% if (!promos || promos.length === 0) { %>
+                    <tr><td colspan="3">No promotion codes have been created.</td></tr>
+                <% } else { %>
+                    <% promos.forEach(promo => { %>
+                        <tr>
+                            <td>
+                                <strong><%= promo.code %></strong>
+                                <div class="muted"><%= promo.usage_count %> redeemed · <%= promo.reserved_count %> reserved</div>
+                            </td>
+                            <td>
+                                <span class="status <%= Number(promo.is_active) === 1 ? 'active' : 'inactive' %>"><%= Number(promo.is_active) === 1 ? 'Active' : 'Inactive' %></span>
+                                <form action="/admin/promos/<%= promo.id %>/toggle" method="POST" style="margin-top:10px">
+                                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                    <button class="button button-secondary" type="submit"><%= Number(promo.is_active) === 1 ? 'Deactivate' : 'Activate' %></button>
+                                </form>
+                            </td>
+                            <td>
+                                <form class="promo-edit" action="/admin/promos/<%= promo.id %>/edit" method="POST">
+                                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                    <div class="form-grid">
+                                        <div><label>Code</label><input name="code" maxlength="50" value="<%= promo.code %>" required></div>
+                                        <div><label>Discount type</label><select name="discount_type"><option value="percentage" <%= promo.discount_type === 'percentage' ? 'selected' : '' %>>Percentage</option><option value="fixed" <%= promo.discount_type === 'fixed' ? 'selected' : '' %>>Fixed amount (₦)</option></select></div>
+                                        <div><label>Discount value</label><input name="discount_value" type="number" min="0.01" step="0.01" value="<%= promo.discount_value %>" required></div>
+                                        <div><label>Minimum order (₦)</label><input name="min_order_amount" type="number" min="0" step="0.01" value="<%= promo.min_order_amount %>"></div>
+                                        <div><label>Maximum discount (₦)</label><input name="max_discount" type="number" min="0.01" step="0.01" value="<%= promo.max_discount ?? '' %>"></div>
+                                        <div><label>Starts at</label><input name="starts_at" type="datetime-local" value="<%= promoDateInput(promo.starts_at) %>"></div>
+                                        <div><label>Expires at</label><input name="expires_at" type="datetime-local" value="<%= promoDateInput(promo.expires_at) %>"></div>
+                                        <div><label>Usage limit</label><input name="usage_limit" type="number" min="1" step="1" value="<%= promo.usage_limit ?? '' %>"></div>
+                                    </div>
+                                    <div class="actions">
+                                        <button class="button" type="submit">Save changes</button>
+                                        <span class="muted">Edits are blocked while a checkout has this code reserved.</span>
+                                    </div>
+                                </form>
+                            </td>
+                        </tr>
+                    <% }); %>
+                <% } %>
+                </tbody>
+            </table>
+        </div>
+    </section>
+</main>
+<%- include('../partials/admin-shell-end') %>

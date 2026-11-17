@@ -10,6 +10,9 @@ const checkoutController = require('../controllers/checkoutController');
 // Show checkout page
 router.post('/checkout', checkoutController.renderCheckoutPage);
 
+// Validate a promo code for the current server-priced cart.
+router.post('/checkout/promo', checkoutController.previewPromoCode);
+
 // Initialize Paystack payment
 router.post('/checkout/pay', checkoutController.handlePaystackInit);
 

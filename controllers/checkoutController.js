@@ -2,6 +2,8 @@
 const crypto = require('crypto');
 const paystackService = require('../services/paystackService');
 const db = require('../models/database');
+const promoService = require('../services/promoService');
+const { initializeAttempt } = require('../services/paymentAttemptLifecycle');
 
 const {
     sendProductPaymentConfirmationEmail
@@ -13,6 +15,10 @@ const {
 
 function createReservationToken() {
     return crypto.randomUUID();
+}
+
+function createPaystackReference() {
+    return `CC-${crypto.randomUUID()}`;
 }
 
 function getVariantId(item) {
@@ -77,15 +83,21 @@ function isCaps(product) {
 // INVENTORY RESERVATION
 // =====================================================
 
-async function reserveInventory(reservationToken, cart) {
+async function reserveInventory(
+    reservationToken,
+    cart,
+    sharedConnection = null,
+    paystackReference = null
+) {
     if (!reservationToken || !Array.isArray(cart) || !cart.length) {
         throw new Error('Invalid inventory reservation request.');
     }
 
-    const connection = await db.promise().getConnection();
+    const ownsConnection = !sharedConnection;
+    const connection = sharedConnection || await db.promise().getConnection();
 
     try {
-        await connection.beginTransaction();
+        if (ownsConnection) await connection.beginTransaction();
 
         const quantities = new Map();
 
@@ -214,6 +226,7 @@ async function reserveInventory(reservationToken, cart) {
                 `INSERT INTO inventory_reservations
                     (
                         reservation_token,
+                        paystack_reference,
                         product_id,
                         variant_id,
                         quantity,
@@ -221,20 +234,20 @@ async function reserveInventory(reservationToken, cart) {
                         expires_at
                     )
                  VALUES (
-                    ?, ?, ?, ?, 'reserved',
+                    ?, ?, ?, ?, ?, 'reserved',
                     DATE_ADD(NOW(), INTERVAL 30 MINUTE)
                  )`,
-                [reservationToken, productId, variantId, quantity]
+                [reservationToken, paystackReference, productId, variantId, quantity]
             );
         }
 
-        await connection.commit();
+        if (ownsConnection) await connection.commit();
         return true;
     } catch (error) {
-        await connection.rollback();
+        if (ownsConnection) await connection.rollback();
         throw error;
     } finally {
-        connection.release();
+        if (ownsConnection) connection.release();
     }
 }
 
@@ -242,7 +255,11 @@ async function reserveInventory(reservationToken, cart) {
 // RELEASE INVENTORY RESERVATION
 // =====================================================
 
-async function releaseReservation(reservationToken) {
+async function releaseReservation(
+    reservationToken,
+    expectedReference = null,
+    options = {}
+) {
     if (!reservationToken) return;
 
     const connection = await db.promise().getConnection();
@@ -250,22 +267,105 @@ async function releaseReservation(reservationToken) {
     try {
         await connection.beginTransaction();
 
-        const [reservations] = await connection.execute(
-            `SELECT id, product_id, variant_id, quantity
-             FROM inventory_reservations
+        const [attemptRows] = await connection.execute(
+            `SELECT reservation_token, paystack_reference,
+                    initialization_status
+             FROM payment_initialization_attempts
              WHERE reservation_token = ?
-               AND status = 'reserved'
              FOR UPDATE`,
             [reservationToken]
         );
 
+        const attempt = attemptRows[0] || null;
+
+        if (options.mode === 'prepared' &&
+            attempt?.initialization_status !== 'prepared') {
+            throw new Error('Payment attempt is no longer in the prepared state.');
+        }
+
+        if (options.mode === 'reject_and_release' &&
+            attempt?.initialization_status !== 'in_flight') {
+            throw new Error('Payment attempt is not awaiting a definitive initialization rejection.');
+        }
+
+        if (options.mode === 'rejected' &&
+            attempt?.initialization_status !== 'rejected') {
+            throw new Error('Payment attempt is not in the rejected state.');
+        }
+
+        if (options.mode === 'verified' && attempt &&
+            !['in_flight', 'initialized'].includes(attempt.initialization_status)) {
+            throw new Error('Payment attempt is not eligible for verified terminal release.');
+        }
+
+        if (attempt && expectedReference &&
+            attempt.paystack_reference !== expectedReference) {
+            throw new Error('Payment attempt reference does not match the reservation.');
+        }
+
+        const [reservations] = await connection.execute(
+            `SELECT id, product_id, variant_id, quantity,
+                    status, paystack_reference
+             FROM inventory_reservations
+             WHERE reservation_token = ?
+             FOR UPDATE`,
+            [reservationToken]
+        );
+
+        if (reservations.some(row => row.status === 'paid')) {
+            await connection.commit();
+            console.warn(
+                `Reservation release skipped because payment is already preserved: ${reservationToken}`
+            );
+            return;
+        }
+
+        if (options.mode === 'reject_and_release') {
+            const [rejected] = await connection.execute(
+                `UPDATE payment_initialization_attempts
+                 SET initialization_status = 'rejected',
+                     rejection_detail = ?
+                 WHERE reservation_token = ?
+                   AND initialization_status = 'in_flight'`,
+                [String(options.rejectionDetail || 'Paystack rejected initialization').slice(0, 1000), reservationToken]
+            );
+
+            if (rejected.affectedRows !== 1) {
+                throw new Error('Could not persist the definitive initialization rejection.');
+            }
+        } else if (options.mode === 'prepared') {
+            // Prevent a delayed request handler from advancing this attempt to
+            // in_flight after the expiry worker has released its reservations.
+            const [cancelled] = await connection.execute(
+                `UPDATE payment_initialization_attempts
+                 SET initialization_status = 'rejected',
+                     rejection_detail = 'Initialization was never started before reservation expiry.'
+                 WHERE reservation_token = ?
+                   AND initialization_status = 'prepared'`,
+                [reservationToken]
+            );
+
+            if (cancelled.affectedRows !== 1) {
+                throw new Error('Could not cancel the unstarted payment attempt.');
+            }
+        }
+
+        if (expectedReference && reservations.some(
+            row => row.paystack_reference &&
+                row.paystack_reference !== expectedReference
+        )) {
+            throw new Error('Reservation is linked to another payment reference.');
+        }
+
         for (const reservation of reservations) {
+            if (reservation.status !== 'reserved') continue;
+
             const [updated] = await connection.execute(
                 `UPDATE inventory_reservations
-                 SET status = 'released'
+                 SET status = ?
                  WHERE id = ?
                    AND status = 'reserved'`,
-                [reservation.id]
+                [options.expiry ? 'expired' : 'released', reservation.id]
             );
 
             if (updated.affectedRows !== 1) {
@@ -301,6 +401,30 @@ async function releaseReservation(reservationToken) {
             }
         }
 
+        const [promoReservations] = await connection.execute(
+            `SELECT status, paystack_reference
+             FROM promo_usage_reservations
+             WHERE reservation_token = ?
+             FOR UPDATE`,
+            [reservationToken]
+        );
+
+        if (promoReservations.length && promoReservations[0].status === 'reserved') {
+            const promoReference = promoReservations[0].paystack_reference || null;
+
+            if (expectedReference && promoReference && promoReference !== expectedReference) {
+                throw new Error('Promotion reservation is linked to another payment reference.');
+            }
+
+            await connection.execute(
+                `UPDATE promo_usage_reservations
+                 SET status = 'released'
+                 WHERE reservation_token = ?
+                   AND status = 'reserved'`,
+                [reservationToken]
+            );
+        }
+
         await connection.commit();
     } catch (error) {
         await connection.rollback();
@@ -310,39 +434,209 @@ async function releaseReservation(reservationToken) {
     }
 }
 
-// =====================================================
-// LINK RESERVATION TO PAYSTACK
-// =====================================================
-
-async function linkReservationToPayment(reservationToken, reference) {
-    if (!reservationToken || !reference) {
-        throw new Error(
-            'Reservation token and payment reference are required.'
-        );
-    }
-
-    const [result] = await db.promise().execute(
-        `UPDATE inventory_reservations
-         SET paystack_reference = ?
+async function markPaymentAttemptInFlight(reservationToken, reference) {
+    const [updated] = await db.promise().execute(
+        `UPDATE payment_initialization_attempts
+         SET initialization_status = 'in_flight'
          WHERE reservation_token = ?
-           AND status = 'reserved'`,
-        [reference, reservationToken]
+           AND paystack_reference = ?
+           AND initialization_status = 'prepared'`,
+        [reservationToken, reference]
     );
 
-    if (result.affectedRows === 0) {
-        const [rows] = await db.promise().execute(
-            `SELECT id
-             FROM inventory_reservations
+    if (updated.affectedRows === 1) return;
+
+    const [rows] = await db.promise().execute(
+        `SELECT initialization_status, paystack_reference
+         FROM payment_initialization_attempts
+         WHERE reservation_token = ?`,
+        [reservationToken]
+    );
+
+    if (
+        rows.length !== 1 ||
+        rows[0].paystack_reference !== reference ||
+        rows[0].initialization_status !== 'in_flight'
+    ) {
+        throw new Error('Could not persist the payment attempt before Paystack initialization.');
+    }
+}
+
+async function markPaymentAttemptInitialized(reservationToken, reference) {
+    const [updated] = await db.promise().execute(
+        `UPDATE payment_initialization_attempts
+         SET initialization_status = 'initialized'
+         WHERE reservation_token = ?
+           AND paystack_reference = ?
+           AND initialization_status = 'in_flight'`,
+        [reservationToken, reference]
+    );
+
+    if (updated.affectedRows === 1) return;
+
+    const [rows] = await db.promise().execute(
+        `SELECT initialization_status, paystack_reference
+         FROM payment_initialization_attempts
+         WHERE reservation_token = ?`,
+        [reservationToken]
+    );
+
+    if (
+        rows.length !== 1 ||
+        rows[0].paystack_reference !== reference ||
+        rows[0].initialization_status !== 'initialized'
+    ) {
+        throw new Error('Could not persist the initialized payment state.');
+    }
+}
+
+exports.releaseReservationForRecovery = (reservationToken, reference, mode) =>
+    releaseReservation(reservationToken, reference, {
+        mode,
+        expiry: true
+    });
+
+function isDefinitiveInitializationRejection(error) {
+    const status = Number(error.response?.status);
+
+    return [400, 401, 403, 422].includes(status) &&
+        error.response?.data?.status === false;
+}
+
+async function associateVerifiedPayment(paymentData, expectedReference, metadata) {
+    const reference = String(paymentData?.reference || '').trim();
+    const reservationToken = String(metadata?.reservationToken || '').trim();
+    const amount = Number(paymentData?.amount);
+    const currency = String(paymentData?.currency || '').toUpperCase();
+
+    if (!reference || reference !== expectedReference) {
+        throw new Error('Verified Paystack reference does not match the requested reference.');
+    }
+
+    if (!reservationToken) {
+        throw new Error('Verified Paystack metadata is missing the reservation token.');
+    }
+
+    if (!Number.isSafeInteger(amount) || amount <= 0 || currency !== 'NGN') {
+        throw new Error('Verified Paystack amount or currency is invalid.');
+    }
+
+    const connection = await db.promise().getConnection();
+
+    try {
+        await connection.beginTransaction();
+
+        const [attemptRows] = await connection.execute(
+            `SELECT paystack_reference, initialization_status,
+                    expected_amount, currency
+             FROM payment_initialization_attempts
              WHERE reservation_token = ?
-               AND paystack_reference = ?`,
-            [reservationToken, reference]
+             FOR UPDATE`,
+            [reservationToken]
         );
 
-        if (!rows.length) {
-            throw new Error(
-                'Could not link the inventory reservation to Paystack.'
+        const [reservations] = await connection.execute(
+            `SELECT status, paystack_reference
+             FROM inventory_reservations
+             WHERE reservation_token = ?
+             FOR UPDATE`,
+            [reservationToken]
+        );
+
+        if (!reservations.length) {
+            throw new Error('No inventory reservation exists for the verified payment.');
+        }
+
+        if (reservations.some(row =>
+            !['reserved', 'paid'].includes(row.status) ||
+            (row.paystack_reference && row.paystack_reference !== reference)
+        )) {
+            throw new Error('Verified payment conflicts with inventory reservation state or reference.');
+        }
+
+        let attempt = attemptRows[0] || null;
+
+        if (attempt) {
+            if (attempt.paystack_reference !== reference) {
+                throw new Error('Verified payment reference conflicts with the durable payment attempt.');
+            }
+
+            if (Number(attempt.expected_amount) !== amount ||
+                String(attempt.currency).toUpperCase() !== currency) {
+                throw new Error('Verified payment amount or currency conflicts with the durable payment attempt.');
+            }
+
+            if (attempt.initialization_status === 'rejected') {
+                throw new Error('Verified payment conflicts with a rejected initialization attempt.');
+            }
+        } else {
+            await connection.execute(
+                `INSERT INTO payment_initialization_attempts
+                    (reservation_token, paystack_reference,
+                     initialization_status, expected_amount, currency)
+                 VALUES (?, ?, 'initialized', ?, ?)`,
+                [reservationToken, reference, amount, currency]
             );
         }
+
+        const [promoRows] = await connection.execute(
+            `SELECT status, paystack_reference
+             FROM promo_usage_reservations
+             WHERE reservation_token = ?
+             FOR UPDATE`,
+            [reservationToken]
+        );
+
+        if (metadata.promoCode && !promoRows.length) {
+            throw new Error('Verified payment is missing its promotion reservation.');
+        }
+
+        if (promoRows.length) {
+            const promo = promoRows[0];
+
+            if (!['reserved', 'redeemed'].includes(promo.status) ||
+                (promo.paystack_reference && promo.paystack_reference !== reference)) {
+                throw new Error('Verified payment conflicts with promotion reservation state or reference.');
+            }
+
+            if (!promo.paystack_reference) {
+                await connection.execute(
+                    `UPDATE promo_usage_reservations
+                     SET paystack_reference = ?
+                     WHERE reservation_token = ?
+                       AND paystack_reference IS NULL`,
+                    [reference, reservationToken]
+                );
+            }
+        }
+
+        if (reservations.some(row => !row.paystack_reference)) {
+            await connection.execute(
+                `UPDATE inventory_reservations
+                 SET paystack_reference = ?
+                 WHERE reservation_token = ?
+                   AND paystack_reference IS NULL`,
+                [reference, reservationToken]
+            );
+        }
+
+        if (attempt) {
+            await connection.execute(
+                `UPDATE payment_initialization_attempts
+                 SET initialization_status = 'initialized'
+                 WHERE reservation_token = ?
+                   AND paystack_reference = ?
+                   AND initialization_status IN ('prepared', 'in_flight', 'initialized')`,
+                [reservationToken, reference]
+            );
+        }
+
+        await connection.commit();
+    } catch (error) {
+        await connection.rollback();
+        throw error;
+    } finally {
+        connection.release();
     }
 }
 
@@ -653,6 +947,27 @@ async function savePaidOrder(paymentData, metadata = {}) {
         Number(metadata.expressSurcharge) || 0
     );
 
+    const promoCode = String(metadata.promoCode || '').trim().toUpperCase();
+    const rawPromoId = Number(metadata.promoId);
+    const promoId = Number.isSafeInteger(rawPromoId) && rawPromoId > 0
+        ? rawPromoId
+        : null;
+    const rawPromoDiscountInKobo = Number(metadata.promoDiscountInKobo || 0);
+    const reservationToken = String(metadata.reservationToken || '').trim();
+
+    if (
+        !Number.isSafeInteger(rawPromoDiscountInKobo) ||
+        rawPromoDiscountInKobo < 0 ||
+        (promoCode && (
+            !promoId ||
+            rawPromoDiscountInKobo <= 0 ||
+            !reservationToken
+        )) ||
+        (!promoCode && (promoId || rawPromoDiscountInKobo !== 0))
+    ) {
+        throw new Error('Invalid promotion metadata.');
+    }
+
     const rawUserId = Number(metadata.userId);
 
     const userId =
@@ -921,8 +1236,16 @@ async function savePaidOrder(paymentData, metadata = {}) {
             });
         }
 
+        if (rawPromoDiscountInKobo > subtotalInKobo) {
+            throw new Error(
+                'Promotion discount exceeds the order subtotal.'
+            );
+        }
+
         const calculatedTotalInKobo =
-            subtotalInKobo + Math.round(surcharge * 100);
+            subtotalInKobo -
+            rawPromoDiscountInKobo +
+            Math.round(surcharge * 100);
 
         if (
             Math.abs(calculatedTotalInKobo - Number(paymentData.amount)) > 0
@@ -937,12 +1260,18 @@ async function savePaidOrder(paymentData, metadata = {}) {
         await connection.execute(
             `UPDATE orders
              SET subtotal = ?,
+                 promo_code_id = ?,
+                 promo_code = ?,
+                 discount_amount = ?,
                  express_surcharge = ?,
                  total_amount = ?,
                  currency = 'NGN'
              WHERE id = ?`,
             [
                 subtotal.toFixed(2),
+                promoId,
+                promoCode || null,
+                (rawPromoDiscountInKobo / 100).toFixed(2),
                 surcharge.toFixed(2),
                 amount.toFixed(2),
                 orderId
@@ -1018,6 +1347,17 @@ async function savePaidOrder(paymentData, metadata = {}) {
             ]
         );
 
+        if (promoCode) {
+            await promoService.redeemPromoUsage(connection, {
+                reservationToken,
+                reference,
+                orderId,
+                promoId,
+                promoCode,
+                discountInKobo: rawPromoDiscountInKobo,
+                subtotalInKobo
+            });
+        }
         await connection.commit();
 
         console.log(
@@ -1122,13 +1462,143 @@ async function sendReceiptOnce(paymentData, metadata = {}) {
     }
 }
 
+async function processVerifiedSuccessfulPayment(paymentData, metadata = {}) {
+    const reference = String(paymentData?.reference || '').trim();
+
+    if (!reference || String(paymentData?.status || '').toLowerCase() !== 'success') {
+        throw new Error('Successful payment verification is required to complete an order.');
+    }
+
+    const cart = normalizeCart(metadata.cart);
+
+    await processVerifiedPaymentStock(paymentData, metadata, cart);
+    await savePaidOrder(paymentData, metadata);
+    await sendReceiptOnce(paymentData, { ...metadata, cart });
+}
+
+exports.processVerifiedSuccessfulPayment = processVerifiedSuccessfulPayment;
+exports.associateVerifiedPayment = associateVerifiedPayment;
+
 // =====================================================
 // RENDER CHECKOUT PAGE
 // =====================================================
 
+async function getAuthoritativeCheckoutCart(value) {
+    const cart = normalizeCart(value);
+
+    if (!cart.length) {
+        throw new Error('Your cart is empty or invalid.');
+    }
+
+    const pricedCart = [];
+
+    for (const item of cart) {
+        const rawId = item.productId ?? item.product_id ?? item.id;
+        const productId = Number(rawId);
+        const productCode = item.productCode || item.product_code;
+        const quantity = Number(item.quantity ?? 1);
+        const variantId = getVariantId(item);
+
+        if (!Number.isSafeInteger(quantity) || quantity < 1) {
+            throw new Error('Invalid product quantity.');
+        }
+
+        let products;
+
+        if (Number.isSafeInteger(productId) && productId > 0) {
+            [products] = await db.promise().execute(
+                `SELECT id, name, category, price, is_active
+                 FROM products
+                 WHERE id = ?`,
+                [productId]
+            );
+        } else if (productCode) {
+            [products] = await db.promise().execute(
+                `SELECT id, name, category, price, is_active
+                 FROM products
+                 WHERE product_code = ?`,
+                [String(productCode)]
+            );
+        } else {
+            throw new Error('A cart item is missing its product ID or product code.');
+        }
+
+        if (products.length !== 1 || Number(products[0].is_active) !== 1) {
+            throw new Error('A product in your cart is unavailable.');
+        }
+
+        const product = products[0];
+        let unitPrice;
+        let productSize = item.productSize || item.product_size || item.size || null;
+
+        if (variantId !== null) {
+            const [variants] = await db.promise().execute(
+                `SELECT id, size, price
+                 FROM product_variants
+                 WHERE id = ? AND product_id = ?`,
+                [variantId, product.id]
+            );
+
+            if (variants.length !== 1) {
+                throw new Error(`The selected size for ${product.name} is unavailable.`);
+            }
+
+            unitPrice = Number(variants[0].price);
+            productSize = String(variants[0].size);
+        } else {
+            const [variants] = await db.promise().execute(
+                `SELECT id
+                 FROM product_variants
+                 WHERE product_id = ?
+                 LIMIT 1`,
+                [product.id]
+            );
+
+            if (variants.length) {
+                throw new Error(`Please select a size for ${product.name}.`);
+            }
+
+            unitPrice = Number(product.price);
+        }
+
+        const priceInKobo = Math.round(unitPrice * 100);
+
+        if (!Number.isSafeInteger(priceInKobo) || priceInKobo < 0) {
+            throw new Error(`Invalid price for ${product.name}.`);
+        }
+
+        pricedCart.push({
+            ...item,
+            productId: Number(product.id),
+            variantId,
+            name: product.name,
+            size: productSize,
+            quantity,
+            price: priceInKobo / 100
+        });
+    }
+
+    return pricedCart;
+}
+
+function getCartSubtotalInKobo(cart) {
+    const subtotalInKobo = cart.reduce(
+        (total, item) => total + Math.round(Number(item.price) * 100) * item.quantity,
+        0
+    );
+
+    if (!Number.isSafeInteger(subtotalInKobo) || subtotalInKobo <= 0) {
+        throw new Error('Invalid order subtotal.');
+    }
+
+    return subtotalInKobo;
+}
+
 exports.renderCheckoutPage = async (req, res) => {
     try {
-        const { cart, total, returnUrl } = req.body;
+        const { cart, returnUrl } = req.body;
+        const pricedCart = await getAuthoritativeCheckoutCart(cart);
+        const subtotalInKobo = getCartSubtotalInKobo(pricedCart);
 
         let customer = {
             email: '',
@@ -1158,8 +1628,8 @@ exports.renderCheckoutPage = async (req, res) => {
         }
 
         return res.render('checkout', {
-            cart: normalizeCart(cart),
-            total,
+            cart: pricedCart,
+            total: subtotalInKobo / 100,
             returnUrl: returnUrl || '/products',
             customer
         });
@@ -1175,13 +1645,36 @@ exports.renderCheckoutPage = async (req, res) => {
     }
 };
 
+exports.previewPromoCode = async (req, res) => {
+    try {
+        const cart = await getAuthoritativeCheckoutCart(req.body?.cart);
+        const subtotalInKobo = getCartSubtotalInKobo(cart);
+        const promo = await promoService.validatePromoCode(
+            req.body?.promoCode,
+            subtotalInKobo
+        );
+
+        return res.json({
+            valid: true,
+            code: promo.code,
+            discountInKobo: promo.discountInKobo,
+            discountAmount: promo.discountAmount,
+            subtotalInKobo
+        });
+    } catch (error) {
+        return res.status(400).json({
+            valid: false,
+            message: error.message || 'Unable to apply this promotion code.'
+        });
+    }
+};
+
 // =====================================================
 // INITIALIZE PAYSTACK PAYMENT
 // =====================================================
 
 exports.handlePaystackInit = async (req, res) => {
     let reservationToken;
-    let paymentInitialized = false;
 
     try {
         const {
@@ -1189,7 +1682,8 @@ exports.handlePaystackInit = async (req, res) => {
             cart,
             deliveryOption,
             returnUrl,
-            deliveryAddress
+            deliveryAddress,
+            promoCode
         } = req.body;
 
         const cartParsed = normalizeCart(cart);
@@ -1483,8 +1977,24 @@ exports.handlePaystackInit = async (req, res) => {
             connection.release();
         }
 
-        const amountInKobo =
-            subtotalInKobo + normalizedSurcharge * 100;
+        let promoResult = null;
+
+        if (String(promoCode || '').trim()) {
+            try {
+                promoResult = await promoService.validatePromoCode(
+                    promoCode,
+                    subtotalInKobo
+                );
+            } catch (promoError) {
+                return res.status(400).send(promoError.message);
+            }
+        }
+
+        const discountInKobo =
+            promoResult?.discountInKobo || 0;
+
+        let amountInKobo =
+            subtotalInKobo - discountInKobo + normalizedSurcharge * 100;
 
         if (
             !Number.isSafeInteger(amountInKobo) ||
@@ -1506,14 +2016,58 @@ exports.handlePaystackInit = async (req, res) => {
         }
 
         reservationToken = createReservationToken();
+        const paymentReference = createPaystackReference();
 
-        await reserveInventory(
-            reservationToken,
-            cartParsed
-        );
+        const reservationConnection = await db.promise().getConnection();
+        try {
+            await reservationConnection.beginTransaction();
 
-        const paymentData =
-            await paystackService.initializeTransaction(
+            if (String(promoCode || '').trim()) {
+                promoResult = await promoService.reservePromoUsage(
+                    promoCode,
+                    subtotalInKobo,
+                    reservationToken,
+                    reservationConnection,
+                    paymentReference
+                );
+            }
+
+            const finalDiscountInKobo = promoResult?.discountInKobo || 0;
+            amountInKobo = subtotalInKobo - finalDiscountInKobo + normalizedSurcharge * 100;
+
+            if (!Number.isSafeInteger(amountInKobo) || amountInKobo <= 0) {
+                throw new Error('Invalid payment amount.');
+            }
+
+            await reserveInventory(
+                reservationToken,
+                cartParsed,
+                reservationConnection,
+                paymentReference
+            );
+
+            await reservationConnection.execute(
+                `INSERT INTO payment_initialization_attempts
+                    (reservation_token, paystack_reference,
+                     initialization_status, expected_amount, currency)
+                 VALUES (?, ?, 'prepared', ?, 'NGN')`,
+                [reservationToken, paymentReference, amountInKobo]
+            );
+
+            await reservationConnection.commit();
+        } catch (reservationError) {
+            await reservationConnection.rollback();
+            throw reservationError;
+        } finally {
+            reservationConnection.release();
+        }
+
+        const paymentData = await initializeAttempt({
+            reference: paymentReference,
+            markInFlight: reference =>
+                markPaymentAttemptInFlight(reservationToken, reference),
+            initialize: reference =>
+                paystackService.initializeTransaction(
                 customerEmail,
                 amountInKobo,
                 cartParsed,
@@ -1524,31 +2078,26 @@ exports.handlePaystackInit = async (req, res) => {
                 customerName,
                 isLoggedIn ? sessionUserId : null,
                 customerPhone,
-                reservationToken
-            );
-
-        paymentInitialized = true;
-
-        if (
-            !paymentData?.authorization_url ||
-            !paymentData?.reference
-        ) {
-            throw new Error(
-                'Paystack returned an incomplete initialization response.'
-            );
-        }
-
-        try {
-            await linkReservationToPayment(
                 reservationToken,
-                paymentData.reference
-            );
-        } catch (linkError) {
-            console.error(
-                'Could not link reservation reference; preserving reservation:',
-                linkError.message
-            );
-        }
+                promoResult?.code || null,
+                promoResult?.id || null,
+                promoResult?.discountInKobo || 0,
+                reference
+            ),
+            markInitialized: reference =>
+                markPaymentAttemptInitialized(reservationToken, reference),
+            rejectAndRelease: (reference, error) =>
+                releaseReservation(reservationToken, reference, {
+                    mode: 'reject_and_release',
+                    rejectionDetail: error.response?.data?.message || error.message
+                }),
+            isDefinitiveRejection: isDefinitiveInitializationRejection,
+            validateResponse: response => {
+                if (!response?.authorization_url) {
+                    throw new Error('Paystack returned an incomplete initialization response.');
+                }
+            }
+        });
 
         console.log(
             'Paystack payment initialized:',
@@ -1563,23 +2112,6 @@ exports.handlePaystackInit = async (req, res) => {
             error.stack ||
             error.message
         );
-
-        if (
-            reservationToken &&
-            !paymentInitialized &&
-            error.response &&
-            error.response.status >= 400 &&
-            error.response.status < 500
-        ) {
-            try {
-                await releaseReservation(reservationToken);
-            } catch (releaseError) {
-                console.error(
-                    'Failed to release reservation:',
-                    releaseError.message
-                );
-            }
-        }
 
         return res.status(500).send(
             'Unable to initialize payment. If you were redirected to Paystack, contact support before retrying.'
@@ -1609,6 +2141,10 @@ exports.handlePaystackCallback = async (req, res) => {
         const paymentData =
             await paystackService.verifyTransaction(reference);
 
+        if (String(paymentData?.reference || '') !== reference) {
+            throw new Error('Paystack verification reference mismatch.');
+        }
+
         const metadata = parsePaystackMetadata(
             paymentData.metadata || {}
         );
@@ -1618,6 +2154,10 @@ exports.handlePaystackCallback = async (req, res) => {
             metadata.reservationToken || ''
         ).trim();
 
+        if (token) {
+            await associateVerifiedPayment(paymentData, reference, metadata);
+        }
+
         if (paymentData.status !== 'success') {
             if (
                 token &&
@@ -1625,7 +2165,7 @@ exports.handlePaystackCallback = async (req, res) => {
                     String(paymentData.status || '').toLowerCase()
                 )
             ) {
-                await releaseReservation(token);
+                await releaseReservation(token, reference, { mode: 'verified' });
             }
 
             return res.render('failure', {
@@ -1633,15 +2173,7 @@ exports.handlePaystackCallback = async (req, res) => {
             });
         }
 
-        await processVerifiedPaymentStock(
-            paymentData,
-            metadata,
-            cart
-        );
-
-        await savePaidOrder(paymentData, metadata);
-
-        await sendReceiptOnce(paymentData, {
+        await processVerifiedSuccessfulPayment(paymentData, {
             ...metadata,
             cart
         });
@@ -1737,6 +2269,10 @@ exports.handlePaystackWebhook = async (req, res) => {
         const paymentData =
             await paystackService.verifyTransaction(reference);
 
+        if (String(paymentData?.reference || '') !== reference) {
+            throw new Error('Paystack verification reference mismatch.');
+        }
+
         if (paymentData.status !== 'success') {
             return res.sendStatus(200);
         }
@@ -1747,15 +2283,11 @@ exports.handlePaystackWebhook = async (req, res) => {
 
         const cart = normalizeCart(metadata.cart);
 
-        await processVerifiedPaymentStock(
-            paymentData,
-            metadata,
-            cart
-        );
+        if (metadata.reservationToken) {
+            await associateVerifiedPayment(paymentData, reference, metadata);
+        }
 
-        await savePaidOrder(paymentData, metadata);
-
-        await sendReceiptOnce(paymentData, {
+        await processVerifiedSuccessfulPayment(paymentData, {
             ...metadata,
             cart
         });

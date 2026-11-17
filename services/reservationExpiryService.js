@@ -1,5 +1,6 @@
-﻿const db = require('../models/database');
+const db = require('../models/database');
 const paystackService = require('./paystackService');
+const { recoverPayment } = require('./paymentRecovery');
 
 const CHECK_INTERVAL_MS = 60 * 1000;
 const EXPIRY_GRACE_MINUTES = 2;
@@ -32,105 +33,6 @@ function parseMetadata(value) {
     }
 
     return {};
-}
-
-// =====================================================
-// RESTORE STOCK AND MARK RESERVATION EXPIRED
-// =====================================================
-
-async function expireReservation(token, expectedReference = null) {
-    const connection = await db.promise().getConnection();
-
-    try {
-        await connection.beginTransaction();
-
-        const [reservations] = await connection.execute(
-            `SELECT
-                id,
-                product_id,
-                variant_id,
-                quantity,
-                paystack_reference
-             FROM inventory_reservations
-             WHERE reservation_token = ?
-               AND status = 'reserved'
-               AND expires_at <= DATE_SUB(
-                   NOW(),
-                   INTERVAL ? MINUTE
-               )
-             FOR UPDATE`,
-            [token, EXPIRY_GRACE_MINUTES]
-        );
-
-        if (!reservations.length) {
-            await connection.commit();
-            return;
-        }
-
-        for (const reservation of reservations) {
-            const currentReference =
-                reservation.paystack_reference || null;
-
-            if (currentReference !== expectedReference) {
-                throw new Error(
-                    `Payment reference changed during expiry: ${token}`
-                );
-            }
-        }
-
-        for (const reservation of reservations) {
-            const [updated] = await connection.execute(
-                `UPDATE inventory_reservations
-                 SET status = 'expired'
-                 WHERE id = ?
-                   AND status = 'reserved'`,
-                [reservation.id]
-            );
-
-            if (updated.affectedRows !== 1) {
-                throw new Error(
-                    `Could not expire reservation ${reservation.id}.`
-                );
-            }
-
-            const [stockUpdate] = await connection.execute(
-                reservation.variant_id
-                    ? `UPDATE product_variants
-                       SET stock_quantity = stock_quantity + ?
-                       WHERE id = ? AND product_id = ?`
-                    : `UPDATE products
-                       SET stock_quantity = stock_quantity + ?
-                       WHERE id = ?`,
-                reservation.variant_id
-                    ? [
-                        reservation.quantity,
-                        reservation.variant_id,
-                        reservation.product_id
-                    ]
-                    : [
-                        reservation.quantity,
-                        reservation.product_id
-                    ]
-            );
-
-            if (stockUpdate.affectedRows !== 1) {
-                throw new Error(
-                    `Could not restore stock for product ${reservation.product_id}.`
-                );
-            }
-        }
-
-        await connection.commit();
-
-        console.log(
-            `Expired reservation and restored stock: ${token}`
-        );
-    } catch (error) {
-        await connection.rollback();
-        throw error;
-    } finally {
-        connection.release();
-    }
 }
 
 // =====================================================
@@ -219,95 +121,90 @@ async function preserveSuccessfulPayment(token, reference) {
 // =====================================================
 
 async function processReservation(token) {
-    const [reservations] = await db.promise().execute(
-        `SELECT paystack_reference
-         FROM inventory_reservations
-         WHERE reservation_token = ?
-           AND status = 'reserved'
-           AND expires_at <= DATE_SUB(
-               NOW(),
-               INTERVAL ? MINUTE
-           )`,
-        [token, EXPIRY_GRACE_MINUTES]
+    const [attemptRows] = await db.promise().execute(
+        `SELECT reservation_token, paystack_reference,
+                initialization_status, expected_amount, currency
+         FROM payment_initialization_attempts
+         WHERE reservation_token = ?`,
+        [token]
     );
 
-    if (!reservations.length) return;
+    const attempt = attemptRows[0] || null;
+    let reference = attempt?.paystack_reference || null;
+    let state = attempt?.initialization_status || 'legacy';
 
-    const references = reservations.map(
-        row => row.paystack_reference || null
-    );
-
-    const uniqueReferences = [...new Set(references)];
-
-    if (uniqueReferences.length !== 1) {
-        console.error(
-            `Inconsistent payment references for reservation: ${token}`
+    if (!attempt) {
+        const [reservations] = await db.promise().execute(
+            `SELECT status, paystack_reference
+             FROM inventory_reservations
+             WHERE reservation_token = ?
+               AND (
+                   (status = 'reserved' AND expires_at <= DATE_SUB(
+                       NOW(), INTERVAL ? MINUTE
+                   ))
+                   OR status = 'paid'
+               )`,
+            [token, EXPIRY_GRACE_MINUTES]
         );
-        return;
+
+        if (!reservations.length) return;
+
+        const references = [...new Set(
+            reservations.map(row => row.paystack_reference || null)
+        )];
+
+        if (references.length !== 1) {
+            console.error(`Inconsistent legacy payment references: ${token}`);
+            return;
+        }
+
+        reference = references[0];
+
+        if (!reference) {
+            console.warn(`Legacy reservation has no reference; leaving reserved for reconciliation: ${token}`);
+            return;
+        }
     }
 
-    const reference = uniqueReferences[0];
+    const checkoutController = require('../controllers/checkoutController');
+    const result = await recoverPayment({
+        state,
+        reference,
+        reservationToken: token,
+        verify: async reference => {
+            const paymentData = await paystackService.verifyTransaction(reference);
+            return paymentData
+                ? { ...paymentData, metadata: parseMetadata(paymentData.metadata) }
+                : paymentData;
+        },
+        associate: (paymentData, expectedReference, expectedToken) =>
+            checkoutController.associateVerifiedPayment(
+                paymentData,
+                expectedReference,
+                { ...parseMetadata(paymentData.metadata), reservationToken: expectedToken }
+            ),
+        complete: async (paymentData, reservationToken) => {
+            const metadata = parseMetadata(paymentData.metadata);
+            await preserveSuccessfulPayment(reservationToken, paymentData.reference);
+            await checkoutController.processVerifiedSuccessfulPayment(paymentData, metadata);
+        },
+        releasePrepared: () =>
+            checkoutController.releaseReservationForRecovery(token, reference, 'prepared'),
+        releaseRejected: () =>
+            checkoutController.releaseReservationForRecovery(token, reference, 'rejected'),
+        releaseTerminal: () =>
+            checkoutController.releaseReservationForRecovery(token, reference, 'verified')
+    });
 
-    // No payment was initialized or linked.
-    if (!reference) {
-        await expireReservation(token, null);
-        return;
+    if ([
+        'unverifiable',
+        'verification-mismatch',
+        'pending',
+        'missing-reference',
+        'missing-reservation-token'
+    ].includes(result)) {
+        console.log(`Reservation remains active (${result}): ${reference || token}`);
     }
-
-    let paymentData;
-
-    // Never release stock if Paystack verification fails.
-    try {
-        paymentData =
-            await paystackService.verifyTransaction(reference);
-    } catch (error) {
-        console.warn(
-            `Paystack verification failed for ${reference}:`,
-            error.message
-        );
-        return;
-    }
-
-    if (
-        !paymentData ||
-        String(paymentData.reference || '') !== reference
-    ) {
-        console.warn(
-            `Invalid Paystack verification response: ${reference}`
-        );
-        return;
-    }
-
-    const metadata = parseMetadata(paymentData.metadata);
-
-    if (
-        String(metadata.reservationToken || '').trim() !== token
-    ) {
-        console.error(
-            `Paystack reservation token mismatch: ${reference}`
-        );
-        return;
-    }
-
-    // Successful payment: never restore stock.
-    if (paymentData.status === 'success') {
-        await preserveSuccessfulPayment(token, reference);
-        return;
-    }
-
-    // Only terminal unsuccessful statuses release stock.
-    if (
-        paymentData.status === 'failed' ||
-        paymentData.status === 'abandoned'
-    ) {
-        await expireReservation(token, reference);
-        return;
-    }
-
-    // Pending or unknown status: leave stock reserved.
-    console.log(
-        `Reservation remains active; Paystack status is ${paymentData.status}: ${reference}`
-    );
 }
 
 // =====================================================
@@ -321,15 +218,36 @@ async function runExpiryCheck() {
 
     try {
         const [candidates] = await db.promise().execute(
-            `SELECT reservation_token
-             FROM inventory_reservations
-             WHERE status = 'reserved'
-               AND expires_at <= DATE_SUB(
-                   NOW(),
-                   INTERVAL ? MINUTE
-               )
-             GROUP BY reservation_token
-             ORDER BY MIN(expires_at) ASC
+            `SELECT ir.reservation_token
+             FROM inventory_reservations ir
+             LEFT JOIN payment_initialization_attempts a
+               ON a.reservation_token = ir.reservation_token
+             LEFT JOIN orders o
+               ON o.order_reference = ir.paystack_reference
+             LEFT JOIN payments p
+               ON p.paystack_reference = ir.paystack_reference
+             LEFT JOIN promo_usage_reservations pur
+               ON pur.reservation_token = ir.reservation_token
+             LEFT JOIN capcentral_receipt_emails re
+               ON re.reference = ir.paystack_reference
+             WHERE (
+                 (ir.status = 'reserved' AND ir.expires_at <= DATE_SUB(
+                     NOW(), INTERVAL ? MINUTE
+                 ) AND (a.reservation_token IS NOT NULL OR ir.paystack_reference IS NOT NULL))
+                 OR (
+                     ir.status = 'paid'
+                     AND ir.paystack_reference IS NOT NULL
+                     AND (
+                         o.id IS NULL
+                         OR p.id IS NULL
+                         OR pur.status = 'reserved'
+                         OR re.reference IS NULL
+                         OR re.status = 'failed'
+                     )
+                 )
+             )
+             GROUP BY ir.reservation_token
+             ORDER BY MIN(ir.expires_at) ASC
              LIMIT ${BATCH_SIZE}`,
             [EXPIRY_GRACE_MINUTES]
         );
