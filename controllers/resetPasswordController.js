@@ -1,4 +1,4 @@
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const db = require('../models/database');
 const jwt = require('jsonwebtoken');
 const { sendPasswordResetEmail } = require('../utils/mailer'); // Assuming you imported the mailer
