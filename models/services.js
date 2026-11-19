@@ -1,11 +1,17 @@
 const db = require('./database'); // Database connection
 const moment = require('moment'); // For date handling
 
-exports.saveCapService = async ({ reference, serviceType, formData }) => {
+exports.saveCapService = async ({ reference, serviceType, formData }, database = db.promise(), sharedConnection = null) => {
   let query, values;
 
-  // Parse the scheduled date as a moment object
-  let scheduleDateTime = moment(formData.scheduleDate, 'YYYY-MM-DD');
+  // The two service forms use different schedule-date field names.
+  const requestedScheduleDate = serviceType === 'laundry'
+    ? formData.laundryScheduleDate
+    : formData.scheduleDate;
+  let scheduleDateTime = moment(requestedScheduleDate, 'YYYY-MM-DD', true);
+  if (!scheduleDateTime.isValid()) {
+    throw new Error('Invalid service schedule date.');
+  }
 
 // Adjust if scheduled on a Sunday
 if (scheduleDateTime.day() === 0) {
@@ -67,7 +73,7 @@ if (serviceType === 'resizing') {
     formData.phone,                        // phone
     parseInt(formData.capsCount),          // caps_count
     parseInt(formData.totalCost.replace(/[^\d]/g, '')), // total_cost (cleaned)
-    formData.scheduleDate,                 // schedule_date
+    scheduleDate,                          // schedule_date
     dueDate,                               // due_date
     formData.deliveryOption,               // delivery_option
     formData.pickupAddress || '',          // pickup_address
@@ -99,7 +105,7 @@ if (serviceType === 'resizing') {
       parseInt(formData.laundryCapsCount),  // caps_count (ensure it is an integer)
       formData.cleaningType,                // cleaning_type
       parseInt(formData.laundryTotalCost.replace(/[^\d]/g, '')), // total_cost (cleaned value)
-      formData.laundryScheduleDate,         // schedule_date
+      scheduleDate,                         // schedule_date
       dueDate,                              // due_date
       formData.laundryDeliveryOption,       // delivery_option
       formData.laundryPickupAddress || '',  // pickup_address (empty string if missing)
@@ -115,23 +121,49 @@ if (serviceType === 'resizing') {
     throw new Error('Unknown service type');
   }
 
+  const normalizedReference = String(reference || '').trim();
+  if (!normalizedReference || normalizedReference.length > 100) {
+    throw new Error('Invalid service payment reference.');
+  }
+
+  const ownsConnection = !sharedConnection;
+  const connection = sharedConnection || await database.getConnection();
   try {
-    // Debugging step: log query and values to verify the issue
-    console.log('Executing query:', query);
-    console.log('With values:', values);
+    if (ownsConnection) await connection.beginTransaction();
+    await connection.execute(
+      'INSERT IGNORE INTO processed_cap_payments (reference) VALUES (?)',
+      [normalizedReference]
+    );
 
-    // Execute the query and save the service data
-    const [result] = await db.promise().execute(query, values);
+    const [existing] = await connection.execute(
+      "SELECT id " +
+      "FROM cap_services " +
+      "WHERE reference_id = ? " +
+      "ORDER BY id ASC " +
+      "LIMIT 2 FOR UPDATE",
+      [normalizedReference]
+    );
 
-    // Assuming the `id` is auto-generated and returned in the result object
-    const serviceId = result.insertId; // Or any equivalent in your query result
-    console.log('✅ Service data saved successfully');
+    if (existing.length > 1) {
+      throw new Error('Multiple service records already use this payment reference.');
+    }
 
-    // Return the service ID so it can be used in other operations
-    return { id: serviceId };  // Return the saved service data with the id
-  } catch (err) {
-    // Log error for debugging
-    console.error('❌ Error saving service data:', err.message);
-    throw err;
+    let serviceId;
+    let created = false;
+    if (existing.length === 1) {
+      serviceId = existing[0].id;
+    } else {
+      const [result] = await connection.execute(query, values);
+      serviceId = result.insertId;
+      created = true;
+    }
+
+    if (ownsConnection) await connection.commit();
+    return { id: serviceId, created };
+  } catch (error) {
+    if (ownsConnection) await connection.rollback();
+    throw error;
+  } finally {
+    if (ownsConnection) connection.release();
   }
 };

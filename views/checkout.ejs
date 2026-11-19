@@ -373,7 +373,7 @@
         <p>
             Secure Checkout
         </p>
-        <a href="/index1.html" class="return-cart-link">Return to Cart</a>
+        <a href="/products?openCart=1" class="return-cart-link">Return to Cart</a>
     </div>
 
 
@@ -580,6 +580,8 @@
             method="POST"
         >
 
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
             <input
                 type="hidden"
                 name="total"
@@ -680,6 +682,7 @@
 </div>
 
 
+<script src="/csrf-client.js"></script>
 <script>
 
     const baseTotal =
@@ -766,11 +769,11 @@
             );
             formData.set("promoCode", code);
 
-            const response = await fetch("/checkout/promo", {
+            const response = await window.capCentralCsrfFetch("/checkout/promo", {
                 method: "POST",
                 headers: { "Accept": "application/json" },
                 body: formData
-            });
+            }, { retryOnCsrf: true, idempotent: true });
             const result = await response.json();
 
             if (!response.ok || !result.valid) {

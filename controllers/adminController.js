@@ -106,6 +106,23 @@ exports.login = async (req, res) => {
     }
 };
 
+exports.logout = (req, res) => {
+    req.session.destroy(error => {
+        if (error) {
+            console.error('Admin logout error:', error);
+            return res.status(500).send('Unable to sign out.');
+        }
+
+        res.clearCookie('connect.sid', {
+            httpOnly: true,
+            sameSite: 'lax',
+            secure: req.secure,
+            path: '/'
+        });
+        return res.redirect('/admin/login');
+    });
+};
+
 // =====================================================
 // ADMIN DASHBOARD
 // =====================================================

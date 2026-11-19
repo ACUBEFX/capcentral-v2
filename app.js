@@ -6,6 +6,11 @@ const bodyParser = require('body-parser');
 const session = require('express-session');
 const path = require('path');
 require('dotenv').config();
+const { createSessionSecurity } = require('./config/sessionSecurity');
+const {
+  csrfSynchronisedProtection,
+  generateToken
+} = require('./middlewares/csrfProtection');
 const reservationExpiryService = require('./services/reservationExpiryService');
 const flash = require('connect-flash');
 
@@ -24,6 +29,11 @@ const adminRoutes = require('./routes/adminroutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const sessionSecurity = createSessionSecurity(process.env);
+
+// Railway forwards one trusted proxy hop and sets X-Forwarded-Proto.
+// Keep proxy trust disabled in local development and other environments.
+app.set('trust proxy', sessionSecurity.trustProxy);
 
 // Set view engine
 app.set('view engine', 'ejs');
@@ -33,14 +43,14 @@ app.set('views', path.join(__dirname, 'views'));
 
 app.use(flash());
 app.use(session({
-  secret: process.env.SESSION_SECRET,
+  secret: sessionSecurity.secret,
   resave: false,
   saveUninitialized: false,
   cookie: {
     maxAge: 1000 * 60 * 60 * 24, // 1 day
     httpOnly: true,
     sameSite: 'lax',
-    secure: false
+    secure: sessionSecurity.secureCookie
   }
 }));
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -57,6 +67,16 @@ app.use(express.json({
         }
     }
 }));
+
+// Protect every unsafe browser request. The CSRF middleware itself exempts
+// only the Paystack server-to-server webhook endpoint.
+app.use(csrfSynchronisedProtection);
+
+app.get('/csrf-token', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.set('Vary', 'Cookie');
+  return res.json({ csrfToken: generateToken(req) });
+});
 
 // Routes
 app.use('/', authRoutes);
@@ -97,7 +117,11 @@ app.use((err, req, res, next) => {
         err.code === 'EBADCSRFTOKEN' ||
         err.name === 'ForbiddenError'
     ) {
-        return res.status(403).send('Forbidden: Invalid or missing security token.');
+        res.set('X-CSRF-Error', '1');
+        res.set('Cache-Control', 'no-store');
+        return res.status(403).send(
+          'Your security token is missing or expired. Reload the page and try again.'
+        );
     }
 
     // Handle other errors

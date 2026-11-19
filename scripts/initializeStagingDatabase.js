@@ -9,9 +9,10 @@
  * Credentials must be supplied through the environment or Railway variables;
  * never put them in this file or in a command-line argument.
  *
- * The script executes only the 19 CREATE TABLE statements in
- * db/fresh-install.sql. MySQL DDL is not rolled back as one transaction. If
- * installation fails, the script stops at and prints the exact statement;
+ * The script executes only the 20 CREATE TABLE statements in
+ * db/fresh-install.sql. MySQL DDL is not rolled back as one transaction. This
+ * schema includes the structures from migrations 001-009; do not apply those
+ * migrations afterward. If installation fails, it prints the exact statement;
  * inspect the database manually and do not rerun blindly. A subsequent run
  * will refuse the now non-empty database.
  *
@@ -30,6 +31,7 @@ const EXPECTED_TABLES = [
     'products',
     'product_variants',
     'cap_services',
+    'service_payment_attempts',
     'orders',
     'order_items',
     'payments',
@@ -61,6 +63,19 @@ const EXPECTED_FOREIGN_KEYS = [
     ['fk_order_requests_order', 'order_requests', 'order_id', 'orders', 'id'],
     ['fk_order_requests_user', 'order_requests', 'user_id', 'signup', 'id'],
     ['fk_stock_variant', 'stock_movements', 'variant_id', 'product_variants', 'id']
+];
+
+const EXPECTED_COLUMNS = [
+    ['service_payment_attempts', 'reference', 'varchar(100)'],
+    ['service_payment_attempts', 'idempotency_key', 'varchar(100)'],
+    ['service_payment_attempts', 'service_type', "enum('resizing','laundry')"],
+    ['service_payment_attempts', 'payer_email', 'varchar(255)'],
+    ['service_payment_attempts', 'expected_amount', 'bigint unsigned'],
+    ['service_payment_attempts', 'currency', 'char(3)'],
+    ['service_payment_attempts', 'service_details', 'json'],
+    ['service_payment_attempts', 'initialization_status', "enum('prepared','in_flight','initialized','rejected','paid','failed')"],
+    ['service_payment_attempts', 'authorization_url', 'varchar(1000)'],
+    ['capcentral_receipt_emails', 'lease_token', 'char(36)']
 ];
 
 class SafeFailure extends Error {
@@ -299,6 +314,25 @@ async function verifyInstalledSchema(connection, database, expectedIndexes) {
         );
     }
 
+    const [columnRows] = await connection.execute(
+        `SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE
+         FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = ? AND TABLE_NAME IN ('service_payment_attempts', 'capcentral_receipt_emails')`,
+        [database]
+    );
+    const actualColumns = new Map(columnRows.map(row => [
+        `${row.TABLE_NAME}|${row.COLUMN_NAME}`,
+        String(row.COLUMN_TYPE).toLowerCase()
+    ]));
+    const missingColumns = EXPECTED_COLUMNS.filter(([table, column, type]) =>
+        actualColumns.get(`${table}|${column}`) !== type
+    );
+    if (missingColumns.length) {
+        throw new SafeFailure(
+            `Post-install column verification failed for: ${missingColumns.map(([table, column]) => `${table}.${column}`).join(', ')}.`
+        );
+    }
+
     const [foreignKeyRows] = await connection.execute(
         `SELECT CONSTRAINT_NAME, TABLE_NAME, COLUMN_NAME,
                 REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
@@ -455,5 +489,7 @@ if (require.main === module) {
 module.exports = {
     splitSqlStatements,
     validateSchemaStatements,
-    collectExpectedIndexes
+    collectExpectedIndexes,
+    EXPECTED_COLUMNS,
+    verifyInstalledSchema
 };

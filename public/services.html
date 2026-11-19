@@ -1,6 +1,4 @@
 
-            <!-- pk_test_80287e6a7c295417ae49afc1c3a7361d392234c2 -->
-  
             <!DOCTYPE html>
             <html lang="en">
             <head>
@@ -558,7 +556,6 @@
               </div>
             </div>
                 <!-- Paystack url -->
-            <script src="https://js.paystack.co/v1/inline.js"></script>
 
             
               <script>
@@ -754,99 +751,116 @@
                 });
 
 
-                // section of the paystack implementation
-                document.getElementById('paystack-btn').addEventListener('click', function(e) {
-  e.preventDefault();
-  
+                // Service payment amount and reference are created server-side.
+const servicePayButton = document.getElementById('paystack-btn');
+const attemptStorageKey = 'capcentral.servicePaymentAttempt';
+let serviceInitPending = false;
+let attemptRecord = null;
+try { attemptRecord = JSON.parse(sessionStorage.getItem(attemptStorageKey) || 'null'); } catch { attemptRecord = null; }
 
-  let email = '';
-let totalCost = '';
-let name = '';  // Added variable to store the name
-let formData = {};
-let selectedServiceType = '';
-const currentService = document.querySelector('.service-tab:not(.hidden)').id; // 'resizing-form' or 'laundry-service'
-console.log("Current Service Selected:", currentService);
-
-// Helper to collect all form data
-const collectFormData = (formId) => {
-  const form = document.getElementById(formId);
-  const data = new FormData(form);
-  return Object.fromEntries(data.entries());
-};
-
-if (currentService === 'resizing-service') {
-  selectedServiceType = 'resizing';
-  formData = collectFormData('resizing-form');
-  email = formData.email;
-  name = formData.name; // Get name from form data
-  totalCost = formData.totalCost;
-} else if (currentService === 'laundry-service') {
-  selectedServiceType = 'laundry';
-  formData = collectFormData('laundry-form');
-  email = formData.email;
-  name = formData.name; // Get name from form data
-  totalCost = formData.laundryTotalCost;
-} else {
-  alert('No service selected.');
-  return;
+function collectServiceForm() {
+  const activeTab = document.querySelector('.service-tab:not(.hidden)');
+  if (!activeTab) throw new Error('Select a service before continuing.');
+  const isResizing = activeTab.id === 'resizing-service';
+  const form = document.getElementById(isResizing ? 'resizing-form' : 'laundry-form');
+  return { serviceType: isResizing ? 'resizing' : 'laundry', formData: Object.fromEntries(new FormData(form).entries()) };
 }
 
-// Clean amount
-totalCost = totalCost.replace(/[^\d]/g, '');
-const amountInKobo = parseInt(totalCost) * 100;
+function currentServiceFingerprint(service) { return JSON.stringify(service); }
 
-if (!email || !name || isNaN(amountInKobo)) { // Ensure name is present
-  alert('Please provide valid name, email, and total cost.');
-  return;
-}
-
-
-  const transactionRef = Date.now() + '_' + Math.floor(Math.random() * 1000);
-
-  const handler = PaystackPop.setup({
-    key: 'pk_test_80287e6a7c295417ae49afc1c3a7361d392234c2',
-    email: email,
-    amount: amountInKobo,
-    currency: 'NGN',
-    ref: transactionRef,
-    callback: function(response) {
-      // Send reference + form data to backend
-      fetch('http://localhost:8000/verify-payment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          reference: response.reference,
-          serviceType: selectedServiceType,
-          formData: formData
-        }),
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          alert('✅ Payment verified!');
-        } else {
-          alert('❌ Payment verification failed.');
-        }
-      })
-      .catch(err => {
-        console.error(err);
-        alert('⚠️ An error occurred during verification.');
-      });
-    },
-    onClose: function() {
-      alert('Transaction was not completed.');
+servicePayButton.addEventListener('click', async function(event) {
+  event.preventDefault();
+  if (serviceInitPending) return;
+  serviceInitPending = true;
+  servicePayButton.setAttribute('aria-disabled', 'true');
+  servicePayButton.classList.add('disabled');
+  let keepLocked = false;
+  let requestStarted = false;
+  let responseReceived = false;
+  let reference = null;
+  try {
+    const service = collectServiceForm();
+    const fingerprint = currentServiceFingerprint(service);
+    if (attemptRecord && attemptRecord.fingerprint !== fingerprint && attemptRecord.unresolved) {
+      throw new Error('A previous payment attempt is unresolved. Do not create another payment; contact support with reference ' + (attemptRecord.reference || 'shown in your browser session') + '.');
     }
-  });
+    if (!attemptRecord || attemptRecord.fingerprint !== fingerprint) {
+      attemptRecord = { fingerprint, idempotencyKey: crypto.randomUUID(), unresolved: false };
+      sessionStorage.setItem(attemptStorageKey, JSON.stringify(attemptRecord));
+    }
 
-  handler.openIframe();
+    requestStarted = true;
+    const response = await window.capCentralCsrfFetch('/initialize-service-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...service, idempotencyKey: attemptRecord.idempotencyKey })
+    });
+    responseReceived = true;
+    const payload = await response.json().catch(() => ({}));
+    reference = payload.reference || null;
+
+    if (payload.success && payload.paid) {
+      sessionStorage.removeItem(attemptStorageKey);
+      alert('Payment verified and your service request was saved.');
+      return;
+    }
+    if (payload.terminal) {
+      sessionStorage.removeItem(attemptStorageKey);
+      attemptRecord = null;
+      throw new Error((payload.error || 'The previous payment attempt is complete.') + ' You may start a new attempt if payment was not completed.');
+    }
+    if (payload.success && payload.authorizationUrl) {
+      attemptRecord.reference = payload.reference;
+      attemptRecord.unresolved = true;
+      sessionStorage.setItem(attemptStorageKey, JSON.stringify(attemptRecord));
+      window.location.assign(payload.authorizationUrl);
+      keepLocked = true;
+      return;
+    }
+    if (payload.pending || payload.reference || response.status >= 500) {
+      attemptRecord.reference = reference;
+      attemptRecord.unresolved = true;
+      sessionStorage.setItem(attemptStorageKey, JSON.stringify(attemptRecord));
+      keepLocked = true;
+      throw new Error((payload.error || payload.message || 'Payment initialization is being reconciled.') +
+        (reference ? ' Reference: ' + reference + '.' : '') + ' Do not submit another payment.');
+    }
+    if (response.ok) throw new Error(payload.error || 'Unable to initialize service payment.');
+    throw new Error(payload.error || 'Unable to initialize service payment.');
+  } catch (error) {
+    if (requestStarted && !responseReceived) {
+      attemptRecord = attemptRecord || { idempotencyKey: crypto.randomUUID(), fingerprint: '', unresolved: true };
+      attemptRecord.unresolved = true;
+      sessionStorage.setItem(attemptStorageKey, JSON.stringify(attemptRecord));
+      keepLocked = true;
+    }
+    alert(error.message || 'Unable to initialize service payment.');
+  } finally {
+    serviceInitPending = false;
+    if (!keepLocked) {
+      servicePayButton.removeAttribute('aria-disabled');
+      servicePayButton.classList.remove('disabled');
+    }
+  }
 });
+
+const servicePaymentStatus = new URLSearchParams(window.location.search).get('payment');
+if (servicePaymentStatus === 'success') {
+  sessionStorage.removeItem(attemptStorageKey);
+  alert('Payment verified and your service request was saved.');
+}
+if (servicePaymentStatus === 'pending') alert('Payment is still being verified. Do not pay again.');
+if (servicePaymentStatus === 'failed') {
+  sessionStorage.removeItem(attemptStorageKey);
+  alert('Paystack did not confirm payment. You may start a new attempt.');
+}
+if (servicePaymentStatus === 'verification_required') alert('Payment verification is delayed. Do not pay again; contact support with your reference.');
 
 
 
 
               </script>
+                <script src="/csrf-client.js" defer></script>
                 <script src="/customer-bottom-nav.js" defer></script>
 </body>
             </html>

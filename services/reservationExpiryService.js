@@ -1,6 +1,9 @@
 const db = require('../models/database');
 const paystackService = require('./paystackService');
 const { recoverPayment } = require('./paymentRecovery');
+const { STALE_RECEIPT_MINUTES } = require('./receiptDelivery');
+const servicePaymentService = require('./servicePaymentService');
+const { withTransactionRetry } = require('./mysqlTransactionRetry');
 
 const CHECK_INTERVAL_MS = 60 * 1000;
 const EXPIRY_GRACE_MINUTES = 2;
@@ -39,7 +42,7 @@ function parseMetadata(value) {
 // MARK VERIFIED SUCCESSFUL PAYMENT AS PAID
 // =====================================================
 
-async function preserveSuccessfulPayment(token, reference) {
+async function preserveSuccessfulPaymentOnce(token, reference) {
     const connection = await db.promise().getConnection();
 
     try {
@@ -116,6 +119,10 @@ async function preserveSuccessfulPayment(token, reference) {
     }
 }
 
+function preserveSuccessfulPayment(token, reference) {
+    return withTransactionRetry(() => preserveSuccessfulPaymentOnce(token, reference));
+}
+
 // =====================================================
 // PROCESS ONE EXPIRED RESERVATION TOKEN
 // =====================================================
@@ -181,7 +188,8 @@ async function processReservation(token) {
             checkoutController.associateVerifiedPayment(
                 paymentData,
                 expectedReference,
-                { ...parseMetadata(paymentData.metadata), reservationToken: expectedToken }
+                { ...parseMetadata(paymentData.metadata), reservationToken: expectedToken },
+                { allowTerminalFailure: true }
             ),
         complete: async (paymentData, reservationToken) => {
             const metadata = parseMetadata(paymentData.metadata);
@@ -231,18 +239,31 @@ async function runExpiryCheck() {
              LEFT JOIN capcentral_receipt_emails re
                ON re.reference = ir.paystack_reference
              WHERE (
-                 (ir.status = 'reserved' AND ir.expires_at <= DATE_SUB(
-                     NOW(), INTERVAL ? MINUTE
-                 ) AND (a.reservation_token IS NOT NULL OR ir.paystack_reference IS NOT NULL))
-                 OR (
-                     ir.status = 'paid'
+                (
+                    ir.status = 'reserved'
+                    AND ir.expires_at <= DATE_SUB(NOW(), INTERVAL ? MINUTE)
+                    AND (a.reservation_token IS NOT NULL OR ir.paystack_reference IS NOT NULL)
+                )
+                OR (
+                    ir.status = 'expired'
+                    AND a.reservation_token IS NOT NULL
+                    AND a.initialization_status IN ('in_flight', 'initialized')
+                    AND ir.paystack_reference IS NOT NULL
+                )
+                OR (
+                    ir.status = 'paid'
                      AND ir.paystack_reference IS NOT NULL
                      AND (
                          o.id IS NULL
                          OR p.id IS NULL
                          OR pur.status = 'reserved'
                          OR re.reference IS NULL
-                         OR re.status = 'failed'
+                         OR (
+                             re.status IN ('failed', 'sending')
+                             AND re.updated_at <= DATE_SUB(
+                                 NOW(), INTERVAL ${STALE_RECEIPT_MINUTES} MINUTE
+                             )
+                         )
                      )
                  )
              )
@@ -264,6 +285,11 @@ async function runExpiryCheck() {
                 );
             }
         }
+
+        await servicePaymentService.recoverStalePayments({
+            onSuccess: reference =>
+                require('../controllers/paystackController').deliverServiceReceipt(reference)
+        });
     } catch (error) {
         console.error(
             'Reservation expiry worker failed:',
@@ -294,3 +320,5 @@ exports.start = function () {
         timer.unref();
     }
 };
+
+exports.runExpiryCheck = runExpiryCheck;

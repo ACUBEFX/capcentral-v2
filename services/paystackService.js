@@ -67,6 +67,37 @@ exports.initializeTransaction = async (
     return response.data.data;
 };
 
+exports.initializeServiceTransaction = async (email, amount, reference) => {
+    const response = await axios.post(
+        'https://api.paystack.co/transaction/initialize',
+        {
+            email,
+            amount,
+            reference,
+            currency: 'NGN',
+            metadata: {
+                paymentType: 'service',
+                servicePaymentReference: reference
+            },
+            callback_url: process.env.PAYSTACK_CALLBACK_URL
+        },
+        {
+            headers: {
+                Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        }
+    );
+
+    if (response.data?.status !== true || !response.data?.data) {
+        const error = new Error('Paystack rejected service payment initialization.');
+        error.response = { status: response.status, data: response.data };
+        error.definitiveInitializationRejection = true;
+        throw error;
+    }
+    return response.data.data;
+};
+
 
 // =====================================================
 // VERIFY PAYSTACK TRANSACTION

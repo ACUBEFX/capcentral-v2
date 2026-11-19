@@ -1,7 +1,8 @@
 -- CapCentral fresh-install schema for MySQL 8.0+
 -- Run once against the already-created, empty database selected by the client.
 -- This file deliberately contains no USE statement, data imports, or customer data.
--- It is a complete DDL baseline; do not follow it by rerunning migrations 001-007.
+-- It is a complete DDL baseline through additive migrations 001-009; do not
+-- apply those migrations again after installing this schema.
 
 CREATE TABLE `signup` (
   `id` INT NOT NULL AUTO_INCREMENT,
@@ -92,6 +93,25 @@ CREATE TABLE `cap_services` (
   PRIMARY KEY (`id`),
   KEY `idx_cap_services_reference_id` (`reference_id`),
   KEY `idx_cap_services_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `service_payment_attempts` (
+  `reference` VARCHAR(100) NOT NULL,
+  `idempotency_key` VARCHAR(100) NOT NULL,
+  `service_type` ENUM('resizing','laundry') NOT NULL,
+  `payer_email` VARCHAR(255) NOT NULL,
+  `expected_amount` BIGINT UNSIGNED NOT NULL,
+  `currency` CHAR(3) NOT NULL DEFAULT 'NGN',
+  `service_details` JSON NOT NULL,
+  `initialization_status` ENUM('prepared','in_flight','initialized','rejected','paid','failed') NOT NULL DEFAULT 'prepared',
+  `authorization_url` VARCHAR(1000) DEFAULT NULL,
+  `paystack_transaction_id` VARCHAR(100) DEFAULT NULL,
+  `rejection_detail` VARCHAR(1000) DEFAULT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`reference`),
+  UNIQUE KEY `uq_service_payment_idempotency` (`idempotency_key`),
+  KEY `idx_service_payment_recovery` (`initialization_status`, `updated_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `orders` (
@@ -273,6 +293,7 @@ CREATE TABLE `processed_cap_payments` (
 CREATE TABLE `capcentral_receipt_emails` (
   `reference` VARCHAR(100) NOT NULL,
   `status` ENUM('sending','sent','failed') NOT NULL DEFAULT 'sending',
+  `lease_token` CHAR(36) DEFAULT NULL,
   `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`reference`)

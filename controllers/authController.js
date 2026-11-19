@@ -102,21 +102,28 @@ const login = async (req, res) => {
                 return res.status(403).send('Please verify your email before logging in.');
             }
 
-            req.session.user = {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                phone_number: user.phone_number || '',
-                address: user.address || ''
-            };
-
-            req.session.save((saveError) => {
-                if (saveError) {
-                    console.error('Session save error:', saveError);
+            req.session.regenerate((regenerateError) => {
+                if (regenerateError) {
+                    console.error('Session regeneration error:', regenerateError);
                     return res.status(500).send('Unable to complete login.');
                 }
 
-                return res.redirect('/products');
+                req.session.user = {
+                    id: user.id,
+                    username: user.username,
+                    email: user.email,
+                    phone_number: user.phone_number || '',
+                    address: user.address || ''
+                };
+
+                req.session.save((saveError) => {
+                    if (saveError) {
+                        console.error('Session save error:', saveError);
+                        return res.status(500).send('Unable to complete login.');
+                    }
+
+                    return res.redirect('/products');
+                });
             });
         });
     } catch (error) {
@@ -134,7 +141,12 @@ const logout = (req, res) => {
             return res.status(500).send('Error logging out.');
         }
 
-        res.clearCookie('connect.sid');
+        res.clearCookie('connect.sid', {
+            httpOnly: true,
+            sameSite: 'lax',
+            secure: req.secure,
+            path: '/'
+        });
         return res.sendFile(
             path.join(__dirname, '..', 'public', 'homepage.html')
         );

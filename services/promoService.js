@@ -65,8 +65,8 @@ async function validatePromoCode(
                 (expires_at IS NULL OR expires_at >= NOW()) AS not_expired
          FROM promo_codes
          WHERE code = ?
-         ${lock ? 'FOR UPDATE' : ''}
-         LIMIT 1`,
+         LIMIT 1
+         ${lock ? 'FOR UPDATE' : ''}`,
         [normalizedCode]
     );
 
@@ -397,32 +397,9 @@ async function redeemPromoUsage(
         throw new Error('Reserved promotion code no longer exists.');
     }
 
-    const promo = promoRows[0];
-
-    if (
-        normalizePromoCode(promo.code) !== normalizePromoCode(promoCode)
-    ) {
-        throw new Error('Promotion code does not match the reservation.');
-    }
-
-    const minimumInKobo = Math.round(
-        Number(promo.min_order_amount) * 100
-    );
-
-    if (subtotalInKobo < minimumInKobo) {
-        throw new Error('Order subtotal no longer meets the promotion minimum.');
-    }
-
-    const expectedDiscountInKobo = calculateDiscountInKobo(
-        promo,
-        subtotalInKobo
-    );
-
-    if (expectedDiscountInKobo !== discountInKobo) {
-        throw new Error('Promotion discount does not match the reserved offer.');
-    }
-
-
+    // The offer was validated and its usage reserved before Paystack
+    // initialization. Admin edits made while the customer paid must not
+    // invalidate that already-priced, verified transaction.
     if (reservation.status !== 'reserved') {
         throw new Error('Promotion reservation is no longer active.');
     }

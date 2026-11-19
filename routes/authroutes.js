@@ -24,8 +24,8 @@ router.get('/login', (req, res) => {
 
 // Handle login form submission
 router.post('/login',  validateLoginInput, login);
-// Logout
-router.get('/logout', logout);
+// Logout changes session state and therefore requires a CSRF-protected POST.
+router.post('/logout', logout);
     
 
 module.exports = router;

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { requestPasswordReset, resetPassword } = require('../controllers/resetPasswordController');
+const { generateToken } = require('../middlewares/csrfProtection');
 
 // Route to request a password reset (POST - sending email with token)
 router.post('/request-password-reset', requestPasswordReset);
@@ -13,7 +14,10 @@ router.get('/reset-password', (req, res) => {
         return res.status(400).json({ message: 'Token is missing or invalid.' });
     }
 
-    res.render('reset', { token });  // Rendering reset.ejs with the token
+    res.render('reset', {
+        token,
+        csrfToken: generateToken(req)
+    });
 });
 
 // Route to handle the new password submission (POST - reset the password)

@@ -4,6 +4,14 @@ const paystackService = require('../services/paystackService');
 const db = require('../models/database');
 const promoService = require('../services/promoService');
 const { initializeAttempt } = require('../services/paymentAttemptLifecycle');
+const servicePaymentService = require('../services/servicePaymentService');
+const { withTransactionRetry } = require('../services/mysqlTransactionRetry');
+const { sendReceiptOnce: deliverReceiptOnce } = require('../services/receiptDelivery');
+const {
+    isActiveVariant,
+    isCapsCategory,
+    resolveOrderUnitPrice
+} = require('../services/checkoutIntegrity');
 
 const {
     sendProductPaymentConfirmationEmail
@@ -166,14 +174,14 @@ async function reserveInventory(
 
             if (variantId !== null) {
                 const [variants] = await connection.execute(
-                    `SELECT id, product_id, size, stock_quantity
+                `SELECT id, product_id, size, stock_quantity, is_active
                      FROM product_variants
                      WHERE id = ? AND product_id = ?
                      FOR UPDATE`,
                     [variantId, productId]
                 );
 
-                if (variants.length !== 1) {
+                if (variants.length !== 1 || !isActiveVariant(variants[0])) {
                     throw new Error(
                         `Selected variant for ${product.name} is unavailable.`
                     );
@@ -197,7 +205,7 @@ async function reserveInventory(
                 }
             }
 
-            if (isCaps(product) && quantity !== 1) {
+            if (isCapsCategory(product.category) && quantity !== 1) {
                 throw new Error(
                     `Caps are unique items: ${product.name}.`
                 );
@@ -255,7 +263,7 @@ async function reserveInventory(
 // RELEASE INVENTORY RESERVATION
 // =====================================================
 
-async function releaseReservation(
+async function releaseReservationOnce(
     reservationToken,
     expectedReference = null,
     options = {}
@@ -434,6 +442,10 @@ async function releaseReservation(
     }
 }
 
+function releaseReservation(...args) {
+    return withTransactionRetry(() => releaseReservationOnce(...args));
+}
+
 async function markPaymentAttemptInFlight(reservationToken, reference) {
     const [updated] = await db.promise().execute(
         `UPDATE payment_initialization_attempts
@@ -503,7 +515,7 @@ function isDefinitiveInitializationRejection(error) {
         error.response?.data?.status === false;
 }
 
-async function associateVerifiedPayment(paymentData, expectedReference, metadata) {
+async function associateVerifiedPaymentOnce(paymentData, expectedReference, metadata, options = {}) {
     const reference = String(paymentData?.reference || '').trim();
     const reservationToken = String(metadata?.reservationToken || '').trim();
     const amount = Number(paymentData?.amount);
@@ -547,8 +559,15 @@ async function associateVerifiedPayment(paymentData, expectedReference, metadata
             throw new Error('No inventory reservation exists for the verified payment.');
         }
 
+        const terminalFailure = options.allowTerminalFailure === true &&
+            ['failed', 'abandoned'].includes(
+                String(paymentData?.status || '').toLowerCase()
+            );
+
         if (reservations.some(row =>
-            !['reserved', 'paid'].includes(row.status) ||
+            !(terminalFailure
+                ? ['reserved', 'paid', 'expired'].includes(row.status)
+                : ['reserved', 'paid'].includes(row.status)) ||
             (row.paystack_reference && row.paystack_reference !== reference)
         )) {
             throw new Error('Verified payment conflicts with inventory reservation state or reference.');
@@ -594,7 +613,11 @@ async function associateVerifiedPayment(paymentData, expectedReference, metadata
         if (promoRows.length) {
             const promo = promoRows[0];
 
-            if (!['reserved', 'redeemed'].includes(promo.status) ||
+            const allowedPromoStatuses = terminalFailure
+                ? ['reserved', 'redeemed', 'released']
+                : ['reserved', 'redeemed'];
+
+            if (!allowedPromoStatuses.includes(promo.status) ||
                 (promo.paystack_reference && promo.paystack_reference !== reference)) {
                 throw new Error('Verified payment conflicts with promotion reservation state or reference.');
             }
@@ -638,6 +661,12 @@ async function associateVerifiedPayment(paymentData, expectedReference, metadata
     } finally {
         connection.release();
     }
+}
+
+function associateVerifiedPayment(paymentData, expectedReference, metadata, options = {}) {
+    return withTransactionRetry(() =>
+        associateVerifiedPaymentOnce(paymentData, expectedReference, metadata, options)
+    );
 }
 
 // =====================================================
@@ -740,7 +769,7 @@ async function updatePurchasedProductStock(reference, cart) {
             const product = rows[0];
             const variantId = getVariantId(item);
 
-            if (isCaps(product) && quantity !== 1) {
+            if (isCapsCategory(item.category ?? product.category) && quantity !== 1) {
                 throw new Error(
                     `Caps are unique items: ${product.name}.`
                 );
@@ -820,7 +849,7 @@ async function updatePurchasedProductStock(reference, cart) {
 // Stock was already deducted during reservation.
 // =====================================================
 
-async function finalizeReservationPayment(reference, reservationToken) {
+async function finalizeReservationPaymentOnce(reference, reservationToken) {
     if (!reference || !reservationToken) {
         throw new Error(
             'Missing payment reference or reservation token.'
@@ -896,6 +925,12 @@ async function finalizeReservationPayment(reference, reservationToken) {
     }
 }
 
+function finalizeReservationPayment(reference, reservationToken) {
+    return withTransactionRetry(() =>
+        finalizeReservationPaymentOnce(reference, reservationToken)
+    );
+}
+
 async function processVerifiedPaymentStock(paymentData, metadata, cart) {
     const reference = String(paymentData.reference || '').trim();
     const token = String(metadata.reservationToken || '').trim();
@@ -911,7 +946,7 @@ async function processVerifiedPaymentStock(paymentData, metadata, cart) {
 // SAVE VERIFIED ORDER
 // =====================================================
 
-async function savePaidOrder(paymentData, metadata = {}) {
+async function savePaidOrderOnce(paymentData, metadata = {}) {
     const reference = String(paymentData.reference || '').trim();
 
     if (!reference) {
@@ -1123,10 +1158,10 @@ async function savePaidOrder(paymentData, metadata = {}) {
                 );
             }
 
-            if (
-                rows.length !== 1 ||
-                Number(rows[0].is_active) !== 1
-            ) {
+            // A verified payment may complete against an item that an admin
+            // deactivated after checkout. Reservation eligibility was checked
+            // before initialization; do not strand a successful charge here.
+            if (rows.length !== 1) {
                 throw new Error(
                     `A product in order ${reference} is unavailable.`
                 );
@@ -1136,6 +1171,9 @@ async function savePaidOrder(paymentData, metadata = {}) {
 
             let unitPrice;
             let productSize = null;
+            const snapshotPrice = Number(item.price);
+            const hasPriceSnapshot = item.price !== undefined &&
+                item.price !== null && Number.isFinite(snapshotPrice) && snapshotPrice >= 0;
 
             if (variantId !== null) {
                 const [variants] = await connection.execute(
@@ -1154,15 +1192,15 @@ async function savePaidOrder(paymentData, metadata = {}) {
 
                 const variant = variants[0];
 
-                unitPrice = Number(variant.price);
-                productSize = String(variant.size);
+                unitPrice = resolveOrderUnitPrice(item.price, variant.price);
+                productSize = String(item.productSize ?? item.size ?? variant.size);
 
                 const submittedSize =
                     item.productSize ??
                     item.product_size ??
                     item.size;
 
-                if (
+                if (!hasPriceSnapshot &&
                     submittedSize &&
                     String(submittedSize).trim() !== productSize
                 ) {
@@ -1179,18 +1217,14 @@ async function savePaidOrder(paymentData, metadata = {}) {
                     [product.id]
                 );
 
-                if (variants.length) {
+                if (variants.length && !hasPriceSnapshot) {
                     throw new Error(
                         `Please select a size for ${product.name}.`
                     );
                 }
 
-                unitPrice = Number(product.price);
-                productSize =
-                    item.productSize ||
-                    item.product_size ||
-                    item.size ||
-                    null;
+                unitPrice = resolveOrderUnitPrice(item.price, product.price);
+                productSize = item.productSize || item.product_size || item.size || null;
             }
 
             if (!Number.isFinite(unitPrice) || unitPrice < 0) {
@@ -1199,7 +1233,7 @@ async function savePaidOrder(paymentData, metadata = {}) {
                 );
             }
 
-            if (isCaps(product) && quantity !== 1) {
+            if (isCapsCategory(item.category ?? product.category) && quantity !== 1) {
                 throw new Error(
                     `Caps are unique items: ${product.name}.`
                 );
@@ -1228,7 +1262,7 @@ async function savePaidOrder(paymentData, metadata = {}) {
             orderItems.push({
                 productId: Number(product.id),
                 variantId,
-                productName: String(product.name).slice(0, 255),
+                productName: String(item.name || product.name).slice(0, 255),
                 productSize,
                 quantity,
                 unitPrice,
@@ -1373,6 +1407,10 @@ async function savePaidOrder(paymentData, metadata = {}) {
     }
 }
 
+function savePaidOrder(paymentData, metadata = {}) {
+    return withTransactionRetry(() => savePaidOrderOnce(paymentData, metadata));
+}
+
 // =====================================================
 // SEND RECEIPT ONCE
 // =====================================================
@@ -1409,20 +1447,8 @@ async function sendReceiptOnce(paymentData, metadata = {}) {
         return;
     }
 
-    const [claim] = await db.promise().execute(
-        `INSERT INTO capcentral_receipt_emails
-            (reference, status)
-         VALUES (?, 'sending') ON DUPLICATE KEY UPDATE status = IF(status = 'failed', 'sending', status)`,
-        [reference]
-    );
-
-    if (claim.affectedRows === 0) {
-        console.log(`Receipt already claimed: ${reference}`);
-        return;
-    }
-
-    try {
-        await sendProductPaymentConfirmationEmail(
+    const sent = await deliverReceiptOnce(reference, () =>
+        sendProductPaymentConfirmationEmail(
             {
                 name: customerName,
                 email: customerEmail
@@ -1432,34 +1458,10 @@ async function sendReceiptOnce(paymentData, metadata = {}) {
             normalizeDeliveryOption(metadata.deliveryOption),
             Number(metadata.expressSurcharge) || 0,
             reference
-        );
+        )
+    );
 
-        await db.promise().execute(
-            `UPDATE capcentral_receipt_emails
-             SET status = 'sent'
-             WHERE reference = ?`,
-            [reference]
-        );
-
-        console.log(`Receipt email sent: ${reference}`);
-    } catch (error) {
-        await db.promise().execute(
-            `UPDATE capcentral_receipt_emails
-             SET status = 'failed'
-             WHERE reference = ?`,
-            [reference]
-        ).catch(dbError => {
-            console.error(
-                'Could not update receipt status:',
-                dbError.message
-            );
-        });
-
-        console.error(
-            'Receipt email failed:',
-            error.stack || error.message
-        );
-    }
+    if (sent) console.log(`Receipt email delivered for ${reference}.`);
 }
 
 async function processVerifiedSuccessfulPayment(paymentData, metadata = {}) {
@@ -1478,6 +1480,7 @@ async function processVerifiedSuccessfulPayment(paymentData, metadata = {}) {
 
 exports.processVerifiedSuccessfulPayment = processVerifiedSuccessfulPayment;
 exports.associateVerifiedPayment = associateVerifiedPayment;
+exports.reserveInventory = reserveInventory;
 
 // =====================================================
 // RENDER CHECKOUT PAGE
@@ -1533,13 +1536,13 @@ async function getAuthoritativeCheckoutCart(value) {
 
         if (variantId !== null) {
             const [variants] = await db.promise().execute(
-                `SELECT id, size, price
+                `SELECT id, size, price, is_active
                  FROM product_variants
                  WHERE id = ? AND product_id = ?`,
                 [variantId, product.id]
             );
 
-            if (variants.length !== 1) {
+            if (variants.length !== 1 || !isActiveVariant(variants[0])) {
                 throw new Error(`The selected size for ${product.name} is unavailable.`);
             }
 
@@ -1571,6 +1574,7 @@ async function getAuthoritativeCheckoutCart(value) {
             ...item,
             productId: Number(product.id),
             variantId,
+            category: product.category,
             name: product.name,
             size: productSize,
             quantity,
@@ -1847,13 +1851,13 @@ exports.handlePaystackInit = async (req, res) => {
 
                 if (variantId !== null) {
                     const [variants] = await connection.execute(
-                        `SELECT id, product_id, size, price, stock_quantity
+                        `SELECT id, product_id, size, price, stock_quantity, is_active
                          FROM product_variants
                          WHERE id = ? AND product_id = ?`,
                         [variantId, productId]
                     );
 
-                    if (variants.length !== 1) {
+                    if (variants.length !== 1 || !isActiveVariant(variants[0])) {
                         return res.status(409).send(
                             `The selected size for ${product.name} is unavailable.`
                         );
@@ -1878,6 +1882,7 @@ exports.handlePaystackInit = async (req, res) => {
 
                     item.variantId = Number(variant.id);
                     item.productSize = String(variant.size);
+                    item.size = String(variant.size);
 
                     price = Number(variant.price);
                     availableStock = Number(
@@ -1922,6 +1927,13 @@ exports.handlePaystackInit = async (req, res) => {
                         `Invalid price for ${product.name}.`
                     );
                 }
+
+                // Paystack metadata is the durable price snapshot used if the
+                // catalog changes before callback/webhook recovery completes.
+                item.name = String(product.name).slice(0, 255);
+                item.category = String(product.category || '').slice(0, 100);
+                item.price = priceInKobo / 100;
+                item.quantity = quantity;
 
                 const key =
                     `${productId}:${variantId || 'product'}`;
@@ -2138,6 +2150,10 @@ exports.handlePaystackCallback = async (req, res) => {
             });
         }
 
+        if (await servicePaymentService.getByReference(reference)) {
+            return require('./paystackController').handleServiceCallback(req, res);
+        }
+
         const paymentData =
             await paystackService.verifyTransaction(reference);
 
@@ -2277,6 +2293,12 @@ exports.handlePaystackWebhook = async (req, res) => {
             return res.sendStatus(200);
         }
 
+        if (await servicePaymentService.getByReference(reference)) {
+            await require('./paystackController').processVerifiedServicePayment(reference, paymentData);
+            console.log('Paystack service webhook processing completed:', reference);
+            return res.sendStatus(200);
+        }
+
         const metadata = parsePaystackMetadata(
             paymentData.metadata || {}
         );
@@ -2309,3 +2331,4 @@ exports.handlePaystackWebhook = async (req, res) => {
         return res.sendStatus(500);
     }
 };
+

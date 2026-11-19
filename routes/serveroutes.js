@@ -38,8 +38,8 @@ router.get('/api/categories', (req, res) => {
 
 
 
-router.get('/products', (req, res) => res.sendFile(path.join(__dirname, '../public', 'index1.html')));
-router.get('/caps', (req, res) => res.sendFile(path.join(__dirname, '../public', 'index1.html')));
+router.get('/products', (req, res) => res.sendFile(path.join(__dirname, '../public', 'index.html')));
+router.get('/caps', (req, res) => res.sendFile(path.join(__dirname, '../public', 'index.html')));
 router.get('/kindea', (req, res) => res.sendFile(path.join(__dirname, '../public', 'kindea.html')));
 router.get('/miyaram', (req, res) => res.sendFile(path.join(__dirname, '../public', 'miyaram.html')));
 router.get('/atiku', (req, res) => res.sendFile(path.join(__dirname, '../public', 'Atiku.html')));

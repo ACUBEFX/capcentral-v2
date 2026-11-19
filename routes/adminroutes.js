@@ -2,21 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 
-const { csrfSync } = require('csrf-sync');
-
-const {
-    generateToken,
-    csrfSynchronisedProtection
-} = csrfSync({
-    getTokenFromRequest: (req) => {
-        if (req.is('application/x-www-form-urlencoded') ||
-            req.is('multipart/form-data')) {
-            return req.body?._csrf;
-        }
-
-        return req.headers['x-csrf-token'];
-    }
-});
+const { generateToken } = require('../middlewares/csrfProtection');
 
 const adminController = require('../controllers/adminController');
 const requireAdmin = require('../middlewares/adminMiddleware');
@@ -27,8 +13,7 @@ const categoryController = require('../controllers/categoryController');
 // Admin login page and submission
 router.get('/admin/login', adminController.renderLogin);
 router.post('/admin/login', adminController.login);
-// Protect all subsequent admin routes against CSRF attacks.
-router.use('/admin', csrfSynchronisedProtection);
+router.post('/admin/logout', requireAdmin, adminController.logout);
 // Generate a CSRF token for admin pages and make it available to EJS views.
 router.use('/admin', (req, res, next) => {
     res.locals.csrfToken = generateToken(req);
