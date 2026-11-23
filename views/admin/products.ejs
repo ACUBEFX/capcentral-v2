@@ -1,0 +1,1161 @@
+﻿ <% const categoryList = categories || []; %>
+<% const productList = products || []; %>
+<% const formatCategoryName = name => name === 'Thobes' ? 'Throbe' : name; %>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Management | CapCentral Admin</title>
+
+    <style>
+        :root {
+            --primary: #173f35;
+            --primary-dark: #102e27;
+            --accent: #d6b36a;
+            --background: #f4f6f5;
+            --surface: #ffffff;
+            --text: #24312d;
+            --muted: #6b7772;
+            --border: #dfe6e2;
+            --danger: #b42318;
+            --success: #167647;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 24px;
+            background: var(--background);
+            color: var(--text);
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .page {
+            width: 100%;
+            max-width: 1500px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            color: var(--primary);
+            font-size: 28px;
+        }
+
+        h2 {
+            margin: 0 0 18px;
+            color: var(--primary);
+            font-size: 21px;
+        }
+
+        .subtitle {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 10px 16px;
+            border: 0;
+            border-radius: 7px;
+            background: var(--primary);
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .button:hover {
+            background: var(--primary-dark);
+        }
+
+        .button-secondary {
+            background: #e9eeeb;
+            color: var(--text);
+        }
+
+        .button-secondary:hover {
+            background: #dce5df;
+        }
+
+        .button-danger {
+            background: var(--danger);
+        }
+
+        .button-danger:hover {
+            background: #8f1c13;
+        }
+
+        .button-small {
+            padding: 7px 10px;
+            font-size: 12px;
+        }
+
+        .panel {
+            margin-bottom: 24px;
+            padding: 22px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--surface);
+            box-shadow: 0 3px 12px rgb(0 0 0 / 3%);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            min-width: 0;
+        }
+
+        .field-full {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            min-height: 42px;
+            padding: 10px 12px;
+            border: 1px solid #cbd5cf;
+            border-radius: 7px;
+            background: #fff;
+            color: var(--text);
+            font: inherit;
+        }
+
+        textarea {
+            min-height: 90px;
+            resize: vertical;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: 2px solid rgb(23 63 53 / 18%);
+            border-color: var(--primary);
+        }
+
+        .form-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .help-text {
+            margin: 5px 0 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .category-details {
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .category-details summary {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 18px 22px;
+            background: #fff;
+            color: var(--primary);
+            font-weight: 700;
+            cursor: pointer;
+            list-style-position: inside;
+        }
+
+        .category-details[open] summary {
+            border-bottom: 1px solid var(--border);
+            background: #f9fbfa;
+        }
+
+        .category-count {
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 400;
+        }
+
+        .category-content {
+            padding: 18px;
+        }
+
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th,
+        td {
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        th {
+            background: #f4f7f5;
+            color: var(--primary);
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        tbody tr:hover {
+            background: #fafcfb;
+        }
+
+        .product-image {
+            display: block;
+            width: 58px;
+            height: 58px;
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            object-fit: cover;
+            background: #f4f4f4;
+        }
+
+        .product-name {
+            min-width: 130px;
+            font-weight: 700;
+        }
+
+        .product-description {
+            max-width: 220px;
+            color: var(--muted);
+            line-height: 1.4;
+            overflow-wrap: anywhere;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 5px 8px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .status-active {
+            background: #e5f5eb;
+            color: var(--success);
+        }
+
+        .status-inactive {
+            background: #fce9e7;
+            color: var(--danger);
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+            min-width: 145px;
+        }
+
+        .inline-form {
+            display: inline;
+            margin: 0;
+        }
+
+        .empty-state {
+            padding: 26px 12px;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        .empty-category {
+            padding: 18px;
+            border: 1px dashed var(--border);
+            border-radius: 8px;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        .hidden-field {
+            display: none !important;
+        }
+
+        dialog {
+            width: min(680px, calc(100% - 24px));
+            max-height: 90vh;
+            padding: 0;
+            border: 0;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgb(0 0 0 / 25%);
+            overflow: auto;
+        }
+
+        dialog::backdrop {
+            background: rgb(0 0 0 / 55%);
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modal-header h2 {
+            margin: 0;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .close-button {
+            border: 0;
+            background: transparent;
+            color: var(--muted);
+            font-size: 27px;
+            cursor: pointer;
+        }
+
+        .notice {
+            margin-bottom: 20px;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #fff;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 700px) {
+            body {
+                padding: 14px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .field-full {
+                grid-column: auto;
+            }
+
+            .panel {
+                padding: 15px;
+            }
+
+            .category-details {
+                padding: 0;
+            }
+
+            .category-content {
+                padding: 10px;
+            }
+
+            h1 {
+                font-size: 23px;
+            }
+
+            .page-header {
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+
+<body class="admin-page">
+<%- include('../partials/admin-shell-start', {
+    admin: admin,
+    adminPageTitle: 'Products & Stock',
+    adminActivePage: 'products'
+}) %>
+    <main class="page">
+        <p class="subtitle">Add products, manage inventory, edit product details, and organise products by category.</p>
+
+        <div class="notice">
+            Product categories are loaded from your Categories manager. Create a category there first if it does not appear below.
+        </div>
+
+        <section class="panel">
+            <h2>Add New Product</h2>
+
+            <form action="/admin/products" method="POST" id="addProductForm">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <div class="form-grid">
+                    <div class="field">
+                        <label for="new_product_code">Product Code</label>
+                        <input
+                            type="text"
+                            id="new_product_code"
+                            name="product_code"
+                            required
+                            maxlength="100"
+                        >
+                    </div>
+
+                    <div class="field">
+                        <label for="new_name">Product Name</label>
+                        <input
+                            type="text"
+                            id="new_name"
+                            name="name"
+                            required
+                            maxlength="255"
+                        >
+                    </div>
+
+                    <div class="field">
+                        <label for="new_category">Category</label>
+                        <select id="new_category" name="category" required>
+                            <option value="">Select category</option>
+                            <% categoryList.forEach(category => { %>
+                                <option
+                                    value="<%= category.name %>"
+                                    data-sizes="<%= JSON.stringify(category.sizes || []) %>"
+                                >
+                                    <%= formatCategoryName(category.name) %>
+                                </option>
+                            <% }); %>
+                        </select>
+                    </div>
+
+                    <div class="field" id="newPriceField">
+                        <label for="new_price">Price</label>
+                        <input
+                            type="number"
+                            id="new_price"
+                            name="price"
+                            min="0"
+                            step="0.01"
+                            required
+                        >
+                    </div>
+
+                    <div class="field" id="newStockField">
+                        <label for="new_stock">Stock Quantity</label>
+                        <input
+                            type="number"
+                            id="new_stock"
+                            name="stock_quantity"
+                            min="0"
+                            step="1"
+                            value="10"
+                        >
+                    </div>
+
+                    <div class="field hidden-field" id="newCapTypeField">
+                        <label for="new_cap_type">Cap Type</label>
+                        <select id="new_cap_type" name="cap_type">
+                            <option value="">Select cap type</option>
+                            <option value="Zanna Bukar">Zanna Bukar</option>
+                            <option value="Bongol">Bongol</option>
+                            <option value="Atiku">Atiku</option>
+                            <option value="Tinubu/Fila">Tinubu/Fila</option>
+                            <option value="Miyaram">Miyaram</option>
+                            <option value="Kindea">Kindea</option>
+                            <option value="Tangaran">Tangaran</option>
+                            <option value="Tonak">Tonak</option>
+                        </select>
+                        <p class="help-text">
+                            Cap products use the existing one-off stock handling.
+                        </p>
+                    </div>
+
+                    <div class="field field-full">
+                        <label for="new_image">Image URL or Path</label>
+                        <input
+                            type="text"
+                            id="new_image"
+                            name="image_url"
+                            placeholder="e.g. images/product.jpg"
+                        >
+                    </div>
+
+                    <div class="field field-full">
+                        <label for="new_description">Description</label>
+                        <textarea
+                            id="new_description"
+                            name="description"
+                            placeholder="Enter product details"
+                        ></textarea>
+                    </div>
+                </div>
+
+                <div class="field field-full hidden-field" id="newVariantSection">
+                    <h3>Product Sizes, Prices and Stock</h3>
+                    <p class="help-text">
+                        Enter a separate price and available stock quantity for each size.
+                    </p>
+
+                    <div id="newVariantRows"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="button">Add Product</button>
+                    <button type="reset" class="button button-secondary" id="resetAddForm">
+                        Clear Form
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <section>
+            <div class="page-header">
+                <div>
+                    <h2>Products by Category</h2>
+                    <p class="subtitle">
+                        Each category below is generated from your category records.
+                    </p>
+                </div>
+            </div>
+
+            <% if (categoryList.length === 0) { %>
+                <div class="panel empty-state">
+                    No categories have been created yet. Open the Categories page to add one.
+                </div>
+            <% } %>
+
+            <% categoryList.forEach((category, index) => { %>
+                <% const categoryProducts = productList.filter(product =>
+                    String(product.category || '').trim().toLowerCase() ===
+                    String(category.name || '').trim().toLowerCase()
+                ); %>
+
+                <details
+                    class="panel category-details"
+                    <%= index === 0 ? 'open' : '' %>
+                >
+                    <summary>
+                        <span>
+                            <%= formatCategoryName(category.name) %>
+                            <span class="category-count">
+                                (<%= categoryProducts.length %> products)
+                            </span>
+                        </span>
+                    </summary>
+
+                    <div class="category-content">
+                        <% if (categoryProducts.length === 0) { %>
+                            <div class="empty-category">
+                                No products in this category yet. Use the form above to add one.
+                            </div>
+                        <% } else { %>
+                            <div class="table-wrapper">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Image</th>
+                                            <th>Product Code</th>
+                                            <th>Name</th>
+                                            <th>Price</th>
+                                            <th>Stock</th>
+                                            <th>Cap Type</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody>
+                                        <% categoryProducts.forEach(product => { %>
+                                            <tr
+                                                data-product-row
+                                                data-category="<%= product.category %>"
+                                            >
+                                                <td>
+                                                    <% if (product.image_url) { %>
+                                                        <img
+                                                            class="product-image"
+                                                            src="<%= product.image_url %>"
+                                                            alt="<%= product.name %>"
+                                                            loading="lazy"
+                                                            onerror="this.style.display='none'"
+                                                        >
+                                                    <% } else { %>
+                                                        <span class="help-text">No image</span>
+                                                    <% } %>
+                                                </td>
+
+                                                <td>
+                                                    <%= product.product_code || '-' %>
+                                                </td>
+
+                                                <td>
+                                                    <div class="product-name">
+                                                        <%= product.name %>
+                                                    </div>
+                                                    <% if (product.description) { %>
+                                                        <div class="product-description">
+                                                            <%= product.description %>
+                                                        </div>
+                                                    <% } %>
+                                                </td>
+
+                                                <td>
+                                                    <%= Number(product.price || 0).toLocaleString('en-NG', {
+                                                        minimumFractionDigits: 2,
+                                                        maximumFractionDigits: 2
+                                                    }) %>
+                                                </td>
+
+                                                <td>
+                                                    <%= product.stock_quantity ?? 0 %>
+                                                </td>
+
+                                                <td>
+                                                    <%= product.cap_type || '-' %>
+                                                </td>
+
+                                                <td>
+                                                    <% if (Number(product.is_active) === 1) { %>
+                                                        <span class="status status-active">Active</span>
+                                                    <% } else { %>
+                                                        <span class="status status-inactive">Inactive</span>
+                                                    <% } %>
+                                                </td>
+
+                                                <td>
+                                                    <div class="actions">
+                                                                                                                <button
+                                                            type="button"
+                                                            class="button button-secondary button-small stock-button"
+                                                            data-id="<%= product.id %>"
+                                                            data-name="<%= product.name || '' %>"
+                                                            data-stock="<%= product.stock_quantity ?? 0 %>"
+                                                        >
+                                                            Adjust Stock
+                                                        </button>
+                                                                                                                <button
+                                                            type="button"
+                                                            class="button button-small edit-button"
+                                                            data-id="<%= product.id %>"
+                                                            data-code="<%= product.product_code || '' %>"
+                                                            data-name="<%= product.name || '' %>"
+                                                            data-category="<%= product.category || '' %>"
+                                                            data-price="<%= product.price ?? 0 %>"
+                                                            data-stock="<%= product.stock_quantity ?? 0 %>"
+                                                            data-cap-type="<%= product.cap_type || '' %>"
+                                                            data-image="<%= product.image_url || '' %>"
+                                                            data-description="<%= product.description || '' %>"
+                                                        >
+                                                            Edit
+                                                        </button>
+
+                                                        <form
+                                                            class="inline-form"
+                                                            action="/admin/products/<%= product.id %>/toggle"
+                                                            method="POST"
+                                                            onsubmit="return confirm('Are you sure you want to change this product's active status?')"
+                                                        >
+                                                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                                            <% if (Number(product.is_active) === 1) { %>
+                                                                <button
+                                                                    type="submit"
+                                                                    class="button button-danger button-small"
+                                                                >
+                                                                    Deactivate
+                                                                </button>
+                                                            <% } else { %>
+                                                                <button
+                                                                    type="submit"
+                                                                    class="button button-small"
+                                                                >
+                                                                    Activate
+                                                                </button>
+                                                            <% } %>
+                                                        </form>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        <% }); %>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <% } %>
+                    </div>
+                </details>
+            <% }); %>
+        </section>
+    </main>
+
+    <dialog id="editModal">
+        <div class="modal-header">
+            <h2>Edit Product</h2>
+            <button
+                type="button"
+                class="close-button"
+                id="closeEditModal"
+                aria-label="Close edit dialog"
+            >
+                &times;
+            </button>
+        </div>
+
+        <div class="modal-body">
+            <form action="#" method="POST" id="editForm">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <div class="form-grid">
+                    <div class="field">
+                        <label for="edit_product_code">Product Code</label>
+                        <input
+                            type="text"
+                            id="edit_product_code"
+                            name="product_code"
+                            required
+                            maxlength="100"
+                        >
+                    </div>
+
+                    <div class="field">
+                        <label for="edit_name">Product Name</label>
+                        <input
+                            type="text"
+                            id="edit_name"
+                            name="name"
+                            required
+                            maxlength="255"
+                        >
+                    </div>
+
+                    <div class="field">
+                        <label for="edit_category">Category</label>
+                        <select id="edit_category" name="category" required>
+                            <% categoryList.forEach(category => { %>
+                                <option value="<%= category.name %>">
+                                    <%= formatCategoryName(category.name) %>
+                                </option>
+                            <% }); %>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="edit_price">Price</label>
+                        <input
+                            type="number"
+                            id="edit_price"
+                            name="price"
+                            min="0"
+                            step="0.01"
+                            required
+                        >
+                    </div>
+
+                    <div class="field" id="editStockField">
+                        <label for="edit_stock">Stock Quantity</label>
+                        <input
+                            type="number"
+                            id="edit_stock"
+                            name="stock_quantity"
+                            min="0"
+                            step="1"
+                        >
+                    </div>
+
+                    <div class="field hidden-field" id="editCapTypeField">
+                        <label for="edit_cap_type">Cap Type</label>
+                        <select id="edit_cap_type" name="cap_type">
+                            <option value="">Select cap type</option>
+                            <option value="Zanna Bukar">Zanna Bukar</option>
+                            <option value="Bongol">Bongol</option>
+                            <option value="Atiku">Atiku</option>
+                            <option value="Tinubu/Fila">Tinubu/Fila</option>
+                            <option value="Miyaram">Miyaram</option>
+                            <option value="Kindea">Kindea</option>
+                            <option value="Tangaran">Tangaran</option>
+                            <option value="Tonak">Tonak</option>
+                        </select>
+                    </div>
+
+                    <div class="field field-full">
+                        <label for="edit_image">Image URL or Path</label>
+                        <input
+                            type="text"
+                            id="edit_image"
+                            name="image_url"
+                        >
+                    </div>
+
+                    <div class="field field-full">
+                        <label for="edit_description">Description</label>
+                        <textarea
+                            id="edit_description"
+                            name="description"
+                        ></textarea>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="button">Save Changes</button>
+                    <button
+                        type="button"
+                        class="button button-secondary"
+                        id="cancelEditModal"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </dialog>
+
+    <dialog id="stockModal">
+    <div class="modal-header">
+        <h2>Adjust Product Stock</h2>
+        <button type="button" class="close-button" id="closeStockModal"
+            aria-label="Close stock adjustment">&times;</button>
+    </div>
+
+    <div class="modal-body">
+        <form id="stockForm" method="POST">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <div class="form-grid">
+                <div class="field field-full">
+                    <label for="stockProductName">Product</label>
+                    <input type="text" id="stockProductName" readonly>
+                </div>
+
+                <div class="field">
+                    <label for="currentStock">Current Quantity</label>
+                    <input type="number" id="currentStock" readonly>
+                </div>
+
+                <div class="field">
+                    <label for="adjustedStock">New Quantity</label>
+                    <input type="number" id="adjustedStock"
+                        name="stock_quantity" min="0" step="1" required>
+                </div>
+
+                <div class="field field-full">
+                    <label for="stockReason">Reason for Adjustment</label>
+                    <select id="stockReason" name="reason" required>
+                        <option value="">Select reason</option>
+                        <option value="Stock received">Stock received</option>
+                        <option value="Damaged goods">Damaged goods</option>
+                        <option value="Stock correction">Stock correction</option>
+                        <option value="Customer return">Customer return</option>
+                        <option value="Manual adjustment">Manual adjustment</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="submit" class="button">Save Stock Adjustment</button>
+                <button type="button" class="button button-secondary"
+                    id="cancelStockModal">Cancel</button>
+            </div>
+        </form>
+    </div>
+</dialog>
+
+    <script>
+        const modal = document.getElementById('editModal');
+        const form = document.getElementById('editForm');
+
+        const fields = {
+            product_code: 'edit_product_code',
+            name: 'edit_name',
+            category: 'edit_category',
+            price: 'edit_price',
+            stock: 'edit_stock',
+            image: 'edit_image',
+            description: 'edit_description'
+        };
+
+      
+const newCategory = document.getElementById('new_category');
+const newPriceField = document.getElementById('newPriceField');
+const newPrice = document.getElementById('new_price');
+const newStockField = document.getElementById('newStockField');
+const newStock = document.getElementById('new_stock');
+const newCapTypeField = document.getElementById('newCapTypeField');
+const newCapType = document.getElementById('new_cap_type');
+
+const editCategory = document.getElementById('edit_category');
+const editStockField = document.getElementById('editStockField');
+const editStock = document.getElementById('edit_stock');
+const editCapTypeField = document.getElementById('editCapTypeField');
+const editCapType = document.getElementById('edit_cap_type');
+
+const newVariantSection = document.getElementById('newVariantSection');
+const newVariantRows = document.getElementById('newVariantRows');
+const newCapTypeSelect = document.getElementById('new_cap_type');
+
+function isCapsCategory(categoryName) {
+    return String(categoryName || '').trim().toLowerCase() === 'caps';
+}
+
+function getProductSizes() {
+    const category = String(newCategory.value || '').trim().toLowerCase();
+
+    // Preserve the existing special Caps size rules.
+    if (category === 'caps') {
+        if (newCapTypeSelect.value === 'Tonak') {
+            return ['50', '51', '52', '53', '54', '55'];
+        }
+
+        return ['22', '22½', '23', '23⅓', '24½', '25'];
+    }
+
+    const selectedOption = newCategory.selectedOptions[0];
+
+    if (!selectedOption) {
+        return [];
+    }
+
+    try {
+        const sizes = JSON.parse(selectedOption.dataset.sizes || '[]');
+        return Array.isArray(sizes) ? sizes : [];
+    } catch (error) {
+        console.error('Could not read category sizes:', error);
+        return [];
+    }
+}
+
+function updateNewStockVisibility() {
+    const hasVariants = getProductSizes().length > 0;
+    const isCap = isCapsCategory(newCategory.value);
+
+    newVariantSection.classList.toggle('hidden-field', !hasVariants);
+
+    newPriceField.classList.toggle('hidden-field', hasVariants);
+    newPrice.required = !hasVariants;
+    newPrice.disabled = hasVariants;
+
+    newStockField.classList.toggle('hidden-field', hasVariants);
+    newStock.required = !hasVariants;
+    newStock.disabled = hasVariants;
+
+    newCapTypeField.classList.toggle('hidden-field', !isCap);
+    newCapType.required = isCap;
+    newCapType.disabled = !isCap;
+
+    if (!hasVariants && (!newStock.value || newStock.value === '1')) {
+        newStock.value = '10';
+    }
+}
+
+function updateEditStockVisibility() {
+    const isCap = isCapsCategory(editCategory.value);
+
+    editStockField.classList.toggle('hidden-field', isCap);
+    editStock.required = !isCap;
+
+    editCapTypeField.classList.toggle('hidden-field', !isCap);
+    editCapType.required = isCap;
+
+    if (isCap) {
+        editStock.value = '1';
+    }
+}
+
+function renderNewVariantRows() {
+    const sizes = getProductSizes();
+
+    newVariantRows.innerHTML = '';
+
+    sizes.forEach(size => {
+        const row = document.createElement('div');
+        row.className = 'form-grid';
+
+        row.innerHTML = `
+            <div class="field">
+                <label>Size</label>
+                <input
+                    type="text"
+                    name="variant_size[]"
+                    value="${size}"
+                    readonly
+                >
+            </div>
+
+            <div class="field">
+                <label>Price (₦)</label>
+                <input
+                    type="number"
+                    name="variant_price[]"
+                    min="0"
+                    step="0.01"
+                    required
+                >
+            </div>
+
+            <div class="field">
+                <label>Stock Quantity</label>
+                <input
+                    type="number"
+                    name="variant_stock[]"
+                    min="0"
+                    step="1"
+                    value="0"
+                    required
+                >
+            </div>
+        `;
+
+        newVariantRows.appendChild(row);
+    });
+
+    updateNewStockVisibility();
+}
+
+newCategory.addEventListener('change', renderNewVariantRows);
+newCapTypeSelect.addEventListener('change', renderNewVariantRows);
+
+editCategory.addEventListener('change', updateEditStockVisibility);
+
+renderNewVariantRows();
+updateEditStockVisibility();
+
+
+
+        document.querySelectorAll('.edit-button').forEach(button => {
+            button.addEventListener('click', () => {
+                form.action =
+                    '/admin/products/' + encodeURIComponent(button.dataset.id) + '/edit';
+
+                document.getElementById(fields.product_code).value =
+                    button.dataset.code || '';
+
+                document.getElementById(fields.name).value =
+                    button.dataset.name || '';
+
+                const productCategory = button.dataset.category || '';
+
+                /*
+                 * Select the product's current category.
+                 * If it is not in the category list, add a temporary option
+                 * so editing an existing product does not lose its category.
+                 */
+                let matchingOption = Array.from(editCategory.options).find(
+                    option => option.value.toLowerCase() === productCategory.toLowerCase()
+                );
+
+                if (!matchingOption && productCategory) {
+                    matchingOption = new Option(productCategory, productCategory);
+                    editCategory.add(matchingOption);
+                }
+
+                editCategory.value = productCategory;
+
+                editCapType.value = button.dataset.capType || '';
+
+                document.getElementById(fields.price).value =
+                    button.dataset.price || '0';
+
+                document.getElementById(fields.stock).value =
+                    button.dataset.stock || '0';
+
+                document.getElementById(fields.image).value =
+                    button.dataset.image || '';
+
+                document.getElementById(fields.description).value =
+                    button.dataset.description || '';
+
+                updateEditStockVisibility();
+
+                modal.showModal();
+            });
+        });
+
+        function closeEditModal() {
+            if (modal.open) {
+                modal.close();
+            }
+        }
+
+        document.getElementById('closeEditModal')
+            .addEventListener('click', closeEditModal);
+
+        document.getElementById('cancelEditModal')
+            .addEventListener('click', closeEditModal);
+
+        modal.addEventListener('click', event => {
+            if (event.target === modal) {
+                closeEditModal();
+            }
+        });
+
+        document.getElementById('resetAddForm')
+            .addEventListener('click', () => {
+                setTimeout(updateNewStockVisibility, 0);
+            });
+
+
+
+                    // Stock adjustment dialog
+        const stockModal = document.getElementById('stockModal');
+        const stockForm = document.getElementById('stockForm');
+
+        document.querySelectorAll('.stock-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const productId = button.dataset.id;
+
+                stockForm.action =
+                    '/admin/products/' + encodeURIComponent(productId) + '/stock';
+
+                document.getElementById('stockProductName').value =
+                    button.dataset.name || '';
+
+                document.getElementById('currentStock').value =
+                    button.dataset.stock || '0';
+
+                document.getElementById('adjustedStock').value =
+                    button.dataset.stock || '0';
+
+                document.getElementById('stockReason').value = '';
+
+                stockModal.showModal();
+            });
+        });
+
+        function closeStockModal() {
+            if (stockModal.open) {
+                stockModal.close();
+            }
+        }
+
+        document.getElementById('closeStockModal')
+            .addEventListener('click', closeStockModal);
+
+        document.getElementById('cancelStockModal')
+            .addEventListener('click', closeStockModal);
+
+        stockModal.addEventListener('click', event => {
+            if (event.target === stockModal) {
+                closeStockModal();
+            }
+        });
+    </script>
+<%- include('../partials/admin-shell-end') %>

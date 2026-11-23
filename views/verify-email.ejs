@@ -1,0 +1,256 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Email Verified | CapCentral</title>
+
+    <link rel="stylesheet" href="/styles/styles.css">
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: "Segoe UI", Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #eef6ff 0%,
+                    #f8fbff 50%,
+                    #eefaf5 100%
+                );
+
+            color: #1f2937;
+        }
+
+        .verification-wrapper {
+            width: 100%;
+            max-width: 520px;
+        }
+
+        .container {
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 48px 40px;
+            text-align: center;
+
+            box-shadow:
+                0 20px 50px rgba(0, 0, 0, 0.08),
+                0 4px 12px rgba(0, 0, 0, 0.04);
+
+            border: 1px solid rgba(0, 0, 0, 0.05);
+
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        /* Success Icon */
+        .success-icon {
+            width: 82px;
+            height: 82px;
+            margin: 0 auto 26px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            background: #e9f9f0;
+            border: 2px solid #22c55e;
+            border-radius: 50%;
+
+            color: #16a34a;
+            font-size: 42px;
+            font-weight: 700;
+
+            animation: popIn 0.5s ease-out;
+        }
+
+        .success-icon::before {
+            content: "✓";
+        }
+
+        /* Logo / Brand */
+        .brand {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #2563eb;
+            margin-bottom: 12px;
+        }
+
+        h1 {
+            font-size: 32px;
+            line-height: 1.25;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 16px;
+        }
+
+        p {
+            font-size: 16px;
+            line-height: 1.7;
+            color: #6b7280;
+            max-width: 420px;
+            margin: 0 auto;
+        }
+
+        .message {
+            margin-bottom: 30px;
+        }
+
+        /* Login Button */
+        .login-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+
+            min-width: 180px;
+            padding: 13px 28px;
+
+            background: #2563eb;
+            color: #ffffff;
+
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 600;
+
+            border-radius: 10px;
+
+            transition:
+                background-color 0.2s ease,
+                transform 0.2s ease,
+                box-shadow 0.2s ease;
+
+            box-shadow: 0 6px 15px rgba(37, 99, 235, 0.22);
+        }
+
+        .login-button:hover {
+            background: #1d4ed8;
+            transform: translateY(-2px);
+            box-shadow: 0 9px 20px rgba(37, 99, 235, 0.28);
+        }
+
+        .login-button:active {
+            transform: translateY(0);
+        }
+
+        .footer {
+            margin-top: 32px;
+            padding-top: 20px;
+            border-top: 1px solid #eef0f3;
+
+            font-size: 13px;
+            line-height: 1.5;
+            color: #9ca3af;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes popIn {
+            from {
+                opacity: 0;
+                transform: scale(0.7);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Mobile */
+        @media (max-width: 600px) {
+            body {
+                padding: 18px;
+            }
+
+            .container {
+                padding: 38px 24px;
+                border-radius: 16px;
+            }
+
+            .success-icon {
+                width: 72px;
+                height: 72px;
+                font-size: 36px;
+            }
+
+            h1 {
+                font-size: 26px;
+            }
+
+            p {
+                font-size: 15px;
+            }
+
+            .login-button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <main class="verification-wrapper">
+
+        <section class="container">
+
+            <div class="success-icon" aria-hidden="true"></div>
+
+            <div class="brand">
+                CapCentral
+            </div>
+
+            <h1>
+                Email Verified Successfully
+            </h1>
+
+            <div class="message">
+                <p>
+                    Your email address has been successfully verified.
+                    Your CapCentral account is now ready to use.
+                </p>
+            </div>
+
+            <a href="/login" class="login-button">
+                Continue to Login
+            </a>
+
+            <div class="footer">
+                Thank you for choosing CapCentral.
+                <br>
+                We're happy to have you with us.
+            </div>
+
+        </section>
+
+    </main>
+
+</body>
+</html>
+```
+

@@ -1,0 +1,649 @@
+﻿
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CapCentral | Delivery Management</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #f4f6fb;
+            color: #1e293b;
+            font-family: Arial, sans-serif;
+        }
+
+        .top {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: center;
+            background: #fff;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 20px 26px;
+        }
+
+        h1 {
+            font-size: 23px;
+            margin: 0 0 6px;
+        }
+
+        .muted {
+            font-size: 13px;
+            color: #64748b;
+            line-height: 1.5;
+        }
+
+        main {
+            max-width: 1700px;
+            margin: auto;
+            padding: 22px;
+        }
+
+        .notice,
+        .error {
+            padding: 13px 15px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .notice {
+            background: #e5f7eb;
+            color: #176337;
+        }
+
+        .error {
+            background: #fde8e8;
+            color: #942b2b;
+        }
+
+        .links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+
+        .links a {
+            font-size: 13px;
+            color: #172554;
+        }
+
+        .tablewrap {
+            overflow: auto;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            min-width: 1050px;
+        }
+
+        th,
+        td {
+            text-align: left;
+            vertical-align: top;
+            border-bottom: 1px solid #e9edf2;
+            padding: 13px;
+            font-size: 13px;
+            max-width: 380px;
+            overflow-wrap: anywhere;
+        }
+
+        th {
+            background: #f8fafc;
+            white-space: nowrap;
+        }
+
+        .delivery-form {
+            min-width: 250px;
+            display: grid;
+            gap: 8px;
+        }
+
+        .delivery-form input,
+        .delivery-form textarea,
+        .delivery-form select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font: inherit;
+            background: white;
+        }
+
+        .delivery-form textarea {
+            min-height: 62px;
+            resize: vertical;
+        }
+
+        .delivery-form button,
+        .status-form button {
+            border: 0;
+            border-radius: 6px;
+            padding: 9px 12px;
+            background: #172554;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .status-form {
+            display: flex;
+            gap: 6px;
+            min-width: 220px;
+        }
+
+        .status-form select {
+            min-width: 130px;
+            padding: 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 32px;
+            color: #64748b;
+        }
+
+        .badge {
+            display: inline-block;
+            border-radius: 20px;
+            background: #e2e8f0;
+            padding: 5px 9px;
+            font-size: 12px;
+        }
+
+        @media (max-width: 650px) {
+            .top {
+                align-items: flex-start;
+                flex-direction: column;
+                padding: 16px;
+            }
+
+            main {
+                padding: 12px;
+            }
+        }
+    
+        /* Modern delivery timeline cards */
+        .delivery-list {
+            display: grid;
+            gap: 18px;
+        }
+
+        .delivery-card {
+            display: grid;
+            grid-template-columns: minmax(190px, .9fr) minmax(190px, .8fr) minmax(300px, 1.35fr);
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 3px 12px rgba(15, 23, 42, .045);
+        }
+
+        .delivery-section {
+            min-width: 0;
+            padding: 20px;
+        }
+
+        .delivery-section + .delivery-section {
+            border-left: 1px solid #e9edf2;
+        }
+
+        .delivery-kicker {
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            margin-bottom: 13px;
+        }
+
+        .delivery-reference {
+            font-size: 15px;
+            font-weight: 750;
+            color: #172554;
+            overflow-wrap: anywhere;
+            margin-bottom: 12px;
+        }
+
+        .delivery-customer {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .delivery-meta {
+            color: #64748b;
+            font-size: 12px;
+            line-height: 1.7;
+            overflow-wrap: anywhere;
+        }
+
+        .delivery-total {
+            font-size: 19px;
+            font-weight: 750;
+            color: #172554;
+            margin: 15px 0;
+        }
+
+        .delivery-status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            background: #e8eef8;
+            color: #263449;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: capitalize;
+        }
+
+        .status-form {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 7px;
+            min-width: 0;
+            margin-top: 12px;
+        }
+
+        .status-form select,
+        .delivery-form input,
+        .delivery-form textarea,
+        .delivery-form select {
+            width: 100%;
+            min-width: 0;
+            padding: 9px 10px;
+            border: 1px solid #dbe2eb;
+            border-radius: 7px;
+            background: #fff;
+            color: #1e293b;
+            font: inherit;
+            font-size: 12px;
+        }
+
+        .delivery-form {
+            display: grid;
+            gap: 11px;
+            min-width: 0;
+        }
+
+        .delivery-form label {
+            display: grid;
+            gap: 5px;
+            color: #475569;
+            font-size: 11px;
+            font-weight: 650;
+        }
+
+        .delivery-form textarea {
+            min-height: 55px;
+            resize: vertical;
+        }
+
+        .delivery-form button,
+        .status-form button {
+            border: 0;
+            border-radius: 7px;
+            padding: 10px 13px;
+            background: #263449;
+            color: white;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .delivery-form button:hover,
+        .status-form button:hover {
+            background: #172554;
+        }
+
+        .timeline {
+            position: relative;
+            display: grid;
+            gap: 19px;
+            margin-top: 5px;
+        }
+
+        .timeline-step {
+            position: relative;
+            display: grid;
+            grid-template-columns: 22px minmax(0, 1fr);
+            gap: 10px;
+            align-items: start;
+        }
+
+        .timeline-step:not(:last-child)::after {
+            content: "";
+            position: absolute;
+            left: 9px;
+            top: 21px;
+            height: 27px;
+            border-left: 2px solid #e2e8f0;
+        }
+
+        .timeline-dot {
+            width: 20px;
+            height: 20px;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            background: #e2e8f0;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .timeline-step.done .timeline-dot,
+        .timeline-step.current .timeline-dot {
+            background: #263449;
+            color: #fff;
+        }
+
+        .timeline-step.done:not(:last-child)::after {
+            border-color: #263449;
+        }
+
+        .timeline-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #334155;
+        }
+
+        .timeline-date {
+            color: #94a3b8;
+            font-size: 10px;
+            margin-top: 3px;
+        }
+
+        .timeline-step.pending .timeline-label {
+            color: #94a3b8;
+        }
+
+        .delivery-cancelled {
+            margin-top: 15px;
+            padding: 9px;
+            border-radius: 7px;
+            background: #fff1f2;
+            color: #be123c;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .delivery-empty {
+            background: #fff;
+            padding: 35px 20px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            color: #64748b;
+        }
+
+        @media (max-width: 1000px) {
+            .delivery-card {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .delivery-section:last-child {
+                grid-column: 1 / -1;
+                border-left: 0;
+                border-top: 1px solid #e9edf2;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .delivery-card {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .delivery-section {
+                padding: 16px;
+            }
+
+            .delivery-section + .delivery-section {
+                border-left: 0;
+                border-top: 1px solid #e9edf2;
+            }
+
+            .delivery-section:last-child {
+                grid-column: auto;
+            }
+
+            .delivery-total {
+                font-size: 18px;
+            }
+        }
+</style>
+</head>
+
+<body class="admin-page">
+<%- include('../partials/admin-shell-start', {
+    admin: admin,
+    adminPageTitle: 'Delivery Management',
+    adminActivePage: 'deliveries'
+}) %>
+<main>
+
+        <% if (message) { %>
+            <div class="notice"><%= message %></div>
+        <% } %>
+
+        <% if (error) { %>
+            <div class="error"><%= error %></div>
+        <% } %>
+
+        <div class="delivery-list">
+
+    <% if (!orders.length) { %>
+        <div class="delivery-empty">
+            No active delivery orders were found.
+            Paid orders will appear here after a successful verified checkout.
+        </div>
+    <% } %>
+
+    <% orders.forEach(order => {
+        const currentStatus = String(order.order_status || '').toLowerCase();
+        const cancelled = ['cancelled', 'refunded'].includes(currentStatus);
+        const progress = {
+            placed: 0,
+            processing: ['paid', 'processing', 'shipped', 'delivered'].includes(currentStatus) ? 1 : 0,
+            dispatched: ['shipped', 'delivered'].includes(currentStatus) || !!order.dispatch_date ? 2 : 0,
+            delivered: currentStatus === 'delivered' || !!order.delivered_at ? 3 : 0
+        };
+        const timelineDate = value => value ? new Date(value).toLocaleString('en-NG') : 'Pending';
+    %>
+
+        <article class="delivery-card">
+
+            <!-- Order summary -->
+            <section class="delivery-section">
+                <div class="delivery-kicker">Order summary</div>
+
+                <div class="delivery-reference">
+                    <%= order.order_reference %>
+                </div>
+
+                <div class="delivery-meta">
+                    Placed: <%= timelineDate(order.created_at) %>
+                </div>
+
+                <div class="delivery-customer">
+                    <%= order.customer_name %>
+                </div>
+
+                <div class="delivery-meta">
+                    <%= order.customer_email %><br>
+                    <%= order.customer_phone || 'No phone recorded' %>
+                </div>
+
+                <div class="delivery-total">
+                    <%= order.currency || 'NGN' %>
+                    <%= Number(order.total_amount || 0).toLocaleString('en-NG', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    }) %>
+                </div>
+
+                <span class="delivery-status">
+                    <%= order.order_status %>
+                </span>
+
+                <div class="delivery-kicker" style="margin-top:20px; margin-bottom:0;">
+                    Update order status
+                </div>
+
+                <form
+                    class="status-form"
+                    method="POST"
+                    action="/admin/deliveries/<%= encodeURIComponent(String(order.id)) %>/status"
+                >
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+                    <select name="status" required>
+                        <% [
+                            'pending', 'paid', 'processing', 'shipped',
+                            'delivered', 'cancelled', 'refunded'
+                        ].forEach(status => { %>
+                            <option
+                                value="<%= status %>"
+                                <%= currentStatus === status ? 'selected' : '' %>
+                            ><%= status %></option>
+                        <% }); %>
+                    </select>
+
+                    <button type="submit">Update</button>
+                </form>
+            </section>
+
+            <!-- Delivery timeline -->
+            <section class="delivery-section">
+                <div class="delivery-kicker">Delivery progress</div>
+
+                <% if (cancelled) { %>
+                    <div class="delivery-cancelled">
+                        This order is <%= currentStatus %>. Normal delivery progress is stopped.
+                    </div>
+                <% } else { %>
+
+                    <div class="timeline">
+
+                        <div class="timeline-step done">
+                            <div class="timeline-dot">✓</div>
+                            <div>
+                                <div class="timeline-label">Order placed</div>
+                                <div class="timeline-date">
+                                    <%= timelineDate(order.created_at) %>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="timeline-step <%= progress.processing ? 'done' : 'pending' %>">
+                            <div class="timeline-dot"><%= progress.processing ? '✓' : '2' %></div>
+                            <div>
+                                <div class="timeline-label">Processing</div>
+                                <div class="timeline-date">
+                                    <%= progress.processing ? 'Order payment confirmed / processing' : 'Awaiting processing' %>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="timeline-step <%= progress.dispatched ? 'done' : 'pending' %>">
+                            <div class="timeline-dot"><%= progress.dispatched ? '✓' : '3' %></div>
+                            <div>
+                                <div class="timeline-label">Dispatched</div>
+                                <div class="timeline-date">
+                                    <%= timelineDate(order.dispatch_date) %>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="timeline-step <%= progress.delivered ? 'done' : 'pending' %>">
+                            <div class="timeline-dot"><%= progress.delivered ? '✓' : '4' %></div>
+                            <div>
+                                <div class="timeline-label">Delivered</div>
+                                <div class="timeline-date">
+                                    <%= timelineDate(order.delivered_at) %>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                <% } %>
+            </section>
+
+            <!-- Delivery details form -->
+            <section class="delivery-section">
+                <div class="delivery-kicker">Delivery details</div>
+
+                <form
+                    class="delivery-form"
+                    method="POST"
+                    action="/admin/deliveries/<%= encodeURIComponent(String(order.id)) %>/details"
+                >
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+                    <label>
+                        Delivery address
+                        <textarea name="delivery_address" maxlength="2000" placeholder="Full delivery address"><%= order.delivery_address || '' %></textarea>
+                    </label>
+
+                    <label>
+                        Delivery type
+                        <select name="delivery_option">
+                            <option value="standard" <%= order.delivery_option === 'standard' ? 'selected' : '' %>>Standard</option>
+                            <option value="express" <%= order.delivery_option === 'express' ? 'selected' : '' %>>Express</option>
+                        </select>
+                    </label>
+
+                    <label>
+                        Tracking number
+                        <input name="tracking_number" maxlength="100" value="<%= order.tracking_number || '' %>" placeholder="e.g. CC-TRACK-0001">
+                    </label>
+
+                    <label>
+                        Dispatch date
+                        <input
+                            type="datetime-local"
+                            name="dispatch_date"
+                            value="<%= order.dispatch_date ? new Date(order.dispatch_date).toISOString().slice(0, 16) : '' %>"
+                        >
+                    </label>
+
+                    <label>
+                        Delivered date/time
+                        <input
+                            type="datetime-local"
+                            name="delivered_at"
+                            value="<%= order.delivered_at ? new Date(order.delivered_at).toISOString().slice(0, 16) : '' %>"
+                        >
+                    </label>
+
+                    <label>
+                        Delivery notes
+                        <textarea name="delivery_notes" maxlength="2000" placeholder="Driver details or delivery instructions"><%= order.delivery_notes || '' %></textarea>
+                    </label>
+
+                    <button type="submit">Save delivery details</button>
+                </form>
+            </section>
+
+        </article>
+
+    <% }); %>
+
+</div></main>
+
+<%- include('../partials/admin-shell-end') %>
+
+
+

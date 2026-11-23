@@ -1,0 +1,60 @@
+﻿<link rel="stylesheet" href="/admin.css">
+
+<div class="admin-layout">
+    <aside class="admin-sidebar" id="shared-admin-sidebar">
+        <div class="brand">CapCentral</div>
+        <div class="sidebar-subtitle">Store administration</div>
+
+        <nav id="shared-admin-nav">
+            <div class="nav-label">Main</div>
+            <a href="/admin" class="<%= adminActivePage === 'dashboard' ? 'active' : '' %>">Dashboard</a>
+            <a href="/admin/orders" class="<%= adminActivePage === 'orders' ? 'active' : '' %>">Orders</a>
+            <a href="/admin/payments" class="<%= adminActivePage === 'payments' ? 'active' : '' %>">Payments</a>
+            <a href="/admin/deliveries" class="<%= adminActivePage === 'deliveries' ? 'active' : '' %>">Deliveries</a>
+            <a href="/admin/order-requests" class="<%= adminActivePage === 'order-requests' ? 'active' : '' %>">Order Requests</a>
+
+            <div class="nav-label">Management</div>
+            <a href="/admin/products" class="<%= adminActivePage === 'products' ? 'active' : '' %>">Products & Stock</a>
+            <a href="/admin/inventory-history" class="<%= adminActivePage === 'inventory-history' ? 'active' : '' %>">Inventory History</a>
+
+            <a href="/admin/categories" class="<%= adminActivePage === 'categories' ? 'active' : '' %>">Categories</a>
+            <a href="/admin/promos" class="<%= adminActivePage === 'promos' ? 'active' : '' %>">Promotions</a>
+            <a href="/admin/customers" class="<%= adminActivePage === 'customers' ? 'active' : '' %>">Customers</a>
+            <a href="/admin/services" class="<%= adminActivePage === 'services' ? 'active' : '' %>">Cap Services</a>
+            <a href="/admin/revenue" class="<%= adminActivePage === 'revenue' ? 'active' : '' %>">Revenue</a>
+        </nav>
+    </aside>
+
+    <div class="admin-shared-backdrop" id="shared-admin-backdrop"></div>
+
+    <div class="admin-main">
+        <header class="admin-shared-header">
+            <button type="button"
+                    class="admin-shared-toggle"
+                    id="shared-admin-toggle"
+                    aria-label="Open navigation"
+                    aria-expanded="false"
+                    aria-controls="shared-admin-sidebar">☰</button>
+
+            <h1><%= adminPageTitle %></h1>
+
+            <div class="admin-shared-user">
+                Signed in as<br>
+                <strong><%= admin.username %></strong>
+                <form action="/admin/logout" method="POST" style="margin-top:8px">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button type="submit">Sign out</button>
+                </form>
+            </div>
+        </header>
+
+
+
+
+
+
+
+
+
+
+

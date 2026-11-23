@@ -1,0 +1,92 @@
+
+/* Shared styles for the database-powered catalogue pages */
+
+.catalogue-controls {
+    display: grid;
+    grid-template-columns: minmax(200px, 2fr) minmax(150px, 1fr) minmax(150px, 1fr);
+    gap: 14px;
+    margin: 20px 0;
+}
+
+.catalogue-controls label,
+.product-size label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.catalogue-controls input,
+.catalogue-controls select,
+.catalogue-size {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 42px;
+    padding: 9px 11px;
+    border: 1px solid #d0d5dd;
+    border-radius: 6px;
+    background: #fff;
+    color: #222;
+    font: inherit;
+}
+
+.catalogue-loading,
+.empty-products {
+    grid-column: 1 / -1;
+    padding: 30px 15px;
+    text-align: center;
+    color: #667085;
+}
+
+.product-stock {
+    margin: 8px 0;
+    font-weight: 600;
+    color: #287a35;
+}
+
+.product-stock.out-of-stock {
+    color: #b42318;
+}
+
+.product-image-container {
+    position: relative;
+}
+
+.sold-overlay-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 2;
+    padding: 7px 10px;
+    border-radius: 4px;
+    background: #b42318;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 800;
+}
+
+.product-image-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 180px;
+    background: #f1f3f5;
+    color: #667085;
+}
+
+.catalogue-add-button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.catalogue-size {
+    margin: 4px 0 10px;
+}
+
+@media (max-width: 700px) {
+    .catalogue-controls {
+        grid-template-columns: 1fr;
+    }
+}
+

@@ -1,0 +1,186 @@
+﻿
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trucker Hats | Cap Central</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:wght@500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="catalogue-page.css">
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <a href="homepage.html"><img src="jpg/logo.jpeg" alt="Cap Central Logo"></a>
+        </div>
+        <h1 id="brandname">Cap Central</h1>
+        <div class="header-icons">
+            <div class="cart-icon" role="button" tabindex="0" aria-label="Open cart">
+                <i class="fas fa-shopping-cart"></i>
+                <div class="cart-count">0</div>
+            </div>
+            <div class="profile-icon">
+                <a id="profile-icon" href="/login" aria-label="Account">
+                    <i class="fas fa-user"></i>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <nav>
+        <div class="nav-container">
+            <div class="burger-menu" aria-label="Open navigation" role="button" tabindex="0">
+                <span></span><span></span><span></span>
+            </div>
+            <ul class="nav-links"></ul>
+        </div>
+    </nav>
+
+    <div class="overlay"></div>
+
+    <aside class="sidebar">
+        <div class="dropdown-sidebar">
+            <button type="button" class="dropdown-btn">
+                Caps <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="dropdown-content-sidebar">
+                <a href="/products">Zanna Bukar</a>
+                <a href="/bongol">Bongol</a>
+                <a href="/atiku">Atiku</a>
+                <a href="/tinubu">Tinubu/Fila</a>
+                <a href="/miyaram">Miyaaram</a>
+                <a href="/kindea">Kindea</a>
+                <a href="/tangaran">Tangaran</a>
+                <a href="/tonak">Tonak</a>
+            </div>
+            <div id="dynamic-category-menu"></div>
+            <div><button type="button" class="dropdown-btn" onclick="location.href='/throbe'">Throbes</button></div>
+            <div><button type="button" class="dropdown-btn" onclick="location.href='/shoes'">Shoes</button></div>
+            <div><button type="button" class="dropdown-btn" onclick="location.href='/trucker'">Trucker Hats</button></div>
+            <div><button type="button" class="dropdown-btn" onclick="location.href='/services'">Services</button></div>
+        </div>
+    </aside>
+
+    <main class="main">
+        <div class="products-header">
+            <h2>Trucker Hats</h2>
+            <p>Explore the latest styles available from Cap Central.</p>
+        </div>
+
+        <div class="product-grid" aria-live="polite">
+            <p class="catalogue-loading">Loading Trucker Hats...</p>
+        </div>
+
+        <div class="cart-items" style="display:none;"></div>
+
+        <div id="product-modal" class="modal">
+            <div class="modal-content">
+                <span class="close" role="button" tabindex="0" aria-label="Close">&times;</span>
+                <div class="modal-image-container">
+                    <img id="modal-product-image" class="modal-image" src="" alt="Product image">
+                </div>
+                <div class="modal-info">
+                    <h2 id="modal-product-name"></h2>
+                    <div id="modal-product-price" class="modal-price"></div>
+                    <div id="modal-product-description" class="modal-desc"></div>
+                    <div id="modal-product-size">
+                        <select id="modal-size-select" aria-label="Select product size">
+                            <option value="">Select size</option>
+                        </select>
+                    </div>
+
+                    <button id="add-to-cart-button" type="button">
+                        <i class="fas fa-shopping-cart"></i> Add to Cart
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-brand">
+                <a href="homepage.html" class="logo">
+                    <img src="jpg/logo.jpeg" alt="Cap Central Logo" width="120">
+                </a>
+            </div>
+
+            <div class="footer-links">
+                <div class="links-column">
+                    <h3>Products</h3>
+                    <ul>
+                        <li><a href="/products">Caps</a></li>
+                        <li><a href="/throbe">Throbes</a></li>
+                        <li><a href="/trucker">Trucker Hats</a></li>
+                        <li><a href="/shoes">Shoes</a></li>
+                    </ul>
+                </div>
+                <div class="links-column">
+                    <h3>Company</h3>
+                    <ul>
+                        <li><a href="/products">Home</a></li>
+                        <li><a href="/services">Services</a></li>
+                        <li><a href="/dashboard">Account</a></li>
+                    </ul>
+                </div>
+                <div class="links-column">
+                    <h3>Support</h3>
+                    <ul>
+                        <li><a href="tel:08166785951">08166785951</a></li>
+                        <li><a href="https://maps.google.com?q=Ibrahim+Dabo+Road,+Kano,+Nigeria" target="_blank" rel="noopener">Ibrahim Dabo Road</a></li>
+                        <li><a href="#" id="emailUsLink">Email us</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-bottom">
+            <div class="social-links">
+                <a href="https://wa.me/2348166785951" target="_blank" rel="noopener" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                <a href="https://twitter.com" target="_blank" rel="noopener" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+                <a href="https://instagram.com" target="_blank" rel="noopener" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+            </div>
+            <p class="copyright">&copy; 2026 Cap Central. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <div id="email-modal" class="emodal">
+        <div class="emodal-content">
+            <span class="close" role="button" tabindex="0" aria-label="Close">&times;</span>
+            <h2>Contact Us</h2>
+            <form id="emailForm" method="post" action="/contact">
+                <label for="userName">Your Name</label>
+                <input type="text" id="userName" name="userName" required>
+
+                <label for="userEmail">Your Email</label>
+                <input type="email" id="userEmail" name="userEmail" required>
+
+                <label for="subject">Subject</label>
+                <input type="text" id="subject" name="subject" required>
+
+                <label for="message">Message</label>
+                <textarea id="message" name="message" rows="4" required></textarea>
+
+                <button type="submit">Send</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+   window.CAPCENTRAL_CATALOGUE = {
+    category: 'Trucker Hats',
+    requiresSize: false
+};
+</script>
+
+<script src="/script.js"></script>
+<script src="/catalogue-page.js"></script>
+<script src="/dynamic-category-menu.js"></script>
+    <script src="/csrf-client.js" defer></script>
+    <script src="/customer-bottom-nav.js" defer></script>
+</body>
+</html>
+

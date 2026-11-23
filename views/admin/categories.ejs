@@ -1,0 +1,498 @@
+﻿
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Categories | CapCentral</title>
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 24px;
+            background: #f4f6f9;
+            color: #222;
+            font-family: Arial, sans-serif;
+        }
+
+        .container { max-width: 1100px; margin: auto; }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 10px 15px;
+            border: 0;
+            border-radius: 6px;
+            background: #172554;
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .button-delete {
+            display: inline-block;
+            padding: 10px 15px;
+            margin-top: 8px;
+            border: 0;
+            border-radius: 6px;
+            background: #dc2626;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .button-delete:disabled {
+            background: #aaa;
+            cursor: not-allowed;
+        }
+
+        .panel {
+            padding: 22px;
+            margin-bottom: 22px;
+            border-radius: 10px;
+            background: white;
+            box-shadow: 0 2px 8px #0000000d;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 7px;
+            font-weight: bold;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 11px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font: inherit;
+        }
+
+        textarea {
+            min-height: 110px;
+            resize: vertical;
+        }
+
+        .table-wrap { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 13px 10px;
+            border-bottom: 1px solid #eee;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th { background: #f8fafc; }
+
+        .status {
+            display: inline-block;
+            padding: 5px 9px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+
+        .visible { background: #dcfce7; color: #166534; }
+        .hidden { background: #fee2e2; color: #991b1b; }
+
+        .muted { color: #666; font-size: 13px; }
+
+        .size-field {
+            margin-top: 16px;
+            max-width: 500px;
+        }
+
+        .edit-panel {
+            display: none;
+            margin-top: 12px;
+            padding: 16px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            min-width: 260px;
+        }
+
+        .edit-panel.open { display: block; }
+
+        .edit-panel .form-grid { margin-bottom: 14px; }
+
+        .action-form { margin-top: 8px; }
+
+        .danger-note {
+            color: #991b1b;
+            font-size: 13px;
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 14px; }
+            .panel { padding: 14px; }
+        }
+    </style>
+</head>
+
+<body class="admin-page">
+<%- include('../partials/admin-shell-start', {
+    admin: admin,
+    adminPageTitle: 'Categories',
+    adminActivePage: 'categories'
+}) %>
+
+<main class="container">
+
+    <p class="muted page-intro">
+        Create categories, configure product sizes, edit categories and control customer visibility.
+    </p>
+
+    <!-- Add Category -->
+    <section class="panel">
+        <h2>Add Category</h2>
+
+        <form action="/admin/categories" method="POST">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+            <div class="form-grid">
+                <div>
+                    <label for="name">Category Name</label>
+                    <input
+                        id="name"
+                        name="name"
+                        type="text"
+                        maxlength="100"
+                        placeholder="e.g. Perfumes"
+                        required
+                    >
+                </div>
+
+                <div>
+                    <label for="template">Product Card Template</label>
+                    <select id="template" name="template">
+                        <option value="standard">Standard product card</option>
+                        <option value="size-select">Product card with size selection</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="size-field" id="addSizesField" hidden>
+                <label for="addSizes">Available Sizes</label>
+                <textarea
+                    id="addSizes"
+                    name="sizes"
+                    placeholder="Enter one size per line&#10;Example:&#10;Small&#10;Medium&#10;Large"
+                ></textarea>
+                <p class="muted">Enter each available size on a separate line.</p>
+            </div>
+
+            <button class="button" type="submit">Add Category</button>
+        </form>
+    </section>
+
+    <!-- Existing Categories -->
+    <section class="panel">
+        <h2>Existing Categories</h2>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Template</th>
+                        <th>Products</th>
+                        <th>Visibility</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    <% if (!categories || categories.length === 0) { %>
+                        <tr><td colspan="5">No categories found.</td></tr>
+                    <% } else { %>
+
+                        <% categories.forEach(category => { %>
+                            <tr>
+                                <td>
+                                    <strong><%= category.name %></strong>
+                                    <div class="muted"><%= category.slug %></div>
+                                </td>
+
+                                <td>
+                                    <%= category.template === 'size-select'
+                                        ? 'Size selection'
+                                        : 'Standard' %>
+                                </td>
+
+                                <td><%= category.product_count %></td>
+
+                                <td>
+                                    <span class="status <%= category.is_visible ? 'visible' : 'hidden' %>">
+                                        <%= category.is_visible ? 'Visible' : 'Hidden' %>
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <button
+                                        class="button"
+                                        type="button"
+                                        onclick="toggleEditPanel('edit-<%= category.id %>')"
+                                    >
+                                        Edit Category
+                                    </button>
+
+                                    <form
+                                        class="action-form"
+                                        action="/admin/categories/<%= category.id %>/toggle"
+                                        method="POST"
+                                    >
+                                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+                                        <button class="button" type="submit">
+                                            <%= category.is_visible
+                                                ? 'Hide from customers'
+                                                : 'Show to customers' %>
+                                        </button>
+                                    </form>
+
+                                    <form
+                                        class="action-form"
+                                        action="/admin/categories/<%= category.id %>/delete"
+                                        method="POST"
+                                        onsubmit="return confirm('Move this category to Deleted Categories? Its products will be kept.');"
+                                    >
+                                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+                                        <button class="button-delete" type="submit">
+                                            Delete Category
+                                        </button>
+                                    </form>
+
+                                    <!-- Edit Category Form -->
+                                    <div class="edit-panel" id="edit-<%= category.id %>">
+                                        <h3>Edit <%= category.name %></h3>
+
+                                        <form
+                                            action="/admin/categories/<%= category.id %>/edit"
+                                            method="POST"
+                                        >
+                                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+                                            <div class="form-grid">
+                                                <div>
+                                                    <label>Category Name</label>
+                                                    <input
+                                                        type="text"
+                                                        name="name"
+                                                        maxlength="100"
+                                                        value="<%= category.name %>"
+                                                        required
+                                                    >
+                                                </div>
+
+                                                <div>
+                                                    <label>Product Card Template</label>
+                                                    <select
+                                                        name="template"
+                                                        class="edit-template"
+                                                        data-size-field="edit-sizes-<%= category.id %>"
+                                                    >
+                                                        <option
+                                                            value="standard"
+                                                            <%= category.template === 'standard' ? 'selected' : '' %>
+                                                        >Standard product card</option>
+
+                                                        <option
+                                                            value="size-select"
+                                                            <%= category.template === 'size-select' ? 'selected' : '' %>
+                                                        >Product card with size selection</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                class="size-field"
+                                                id="edit-sizes-<%= category.id %>"
+                                                <%= category.template === 'size-select' ? '' : 'hidden' %>
+                                            >
+                                                <label>Available Sizes</label>
+
+                                                <textarea
+                                                    name="sizes"
+                                                    placeholder="Enter one size per line"
+                                                ><%= (category.sizes || []).join('\n') %></textarea>
+
+                                                <p class="muted">One size per line.</p>
+                                            </div>
+
+                                            <button class="button" type="submit">
+                                                Save Changes
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        <% }); %>
+
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Deleted Categories -->
+    <section class="panel">
+        <h2>Deleted Categories</h2>
+
+        <p class="muted">
+            Deleted categories can be restored. Permanently deleting a category
+            is allowed only when it has no assigned products.
+        </p>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Template</th>
+                        <th>Products</th>
+                        <th>Previous Visibility</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    <% if (!deletedCategories || deletedCategories.length === 0) { %>
+                        <tr><td colspan="5">No deleted categories.</td></tr>
+                    <% } else { %>
+
+                        <% deletedCategories.forEach(category => { %>
+                            <tr>
+                                <td>
+                                    <strong><%= category.name %></strong>
+                                    <div class="muted"><%= category.slug %></div>
+                                </td>
+
+                                <td>
+                                    <%= category.template === 'size-select'
+                                        ? 'Size selection'
+                                        : 'Standard' %>
+                                </td>
+
+                                <td>
+                                    <strong><%= category.product_count %></strong>
+
+                                    <% if (Number(category.product_count) > 0) { %>
+                                        <div class="danger-note">
+                                            Reassign products before permanent deletion.
+                                        </div>
+                                    <% } %>
+                                </td>
+
+                                <td>
+                                    <span class="status <%= category.is_visible ? 'visible' : 'hidden' %>">
+                                        <%= category.is_visible ? 'Visible' : 'Hidden' %>
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <form
+                                        action="/admin/categories/<%= category.id %>/restore"
+                                        method="POST"
+                                        onsubmit="return confirm('Restore this category?');"
+                                    >
+                                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+                                        <button class="button" type="submit">
+                                            Restore Category
+                                        </button>
+                                    </form>
+
+                                    <form
+                                        class="action-form"
+                                        action="/admin/categories/<%= category.id %>/permanent-delete"
+                                        method="POST"
+                                        onsubmit="return confirm('Permanently delete this category? This cannot be undone.');"
+                                    >
+                                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+                                        <button
+                                            class="button-delete"
+                                            type="submit"
+                                            <%= Number(category.product_count) > 0 ? 'disabled' : '' %>
+                                        >
+                                            Permanently Delete
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <% }); %>
+
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+</main>
+
+<script>
+    const addTemplate = document.getElementById('template');
+    const addSizesField = document.getElementById('addSizesField');
+    const addSizes = document.getElementById('addSizes');
+
+    function updateAddSizesField() {
+        const needsSizes = addTemplate.value === 'size-select';
+
+        addSizesField.hidden = !needsSizes;
+        addSizes.required = needsSizes;
+    }
+
+    addTemplate.addEventListener('change', updateAddSizesField);
+    updateAddSizesField();
+
+    function toggleEditPanel(id) {
+        const panel = document.getElementById(id);
+
+        if (panel) {
+            panel.classList.toggle('open');
+        }
+    }
+
+    document.querySelectorAll('.edit-template').forEach(select => {
+        function updateEditSizesField() {
+            const field = document.getElementById(select.dataset.sizeField);
+
+            if (field) {
+                const needsSizes = select.value === 'size-select';
+
+                field.hidden = !needsSizes;
+                field.querySelector('textarea').required = needsSizes;
+            }
+        }
+
+        select.addEventListener('change', updateEditSizesField);
+        updateEditSizesField();
+    });
+</script>
+
+<%- include('../partials/admin-shell-end') %>
+</body>
+</html>

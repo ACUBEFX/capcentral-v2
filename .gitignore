@@ -1,0 +1,48 @@
+﻿# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+/node_modules/
+
+# Local backups and database dumps
+/backups/
+/ui-redesign-backup-*/
+*.sql.bak
+*.dump
+*.log
+*.backup*
+*.before-*
+*.recovered*
+*.navbar-backup-*
+*.variants-backup
+
+# Local editor settings
+.vscode/
+
+# Temporary inspection and migration scripts
+check-*.js
+inspect-*.js
+run-*-migration.js
+test-reservation-*.js
+scripts/check-*.js
+temp-*
+trial.js
+
+# Local database backup utilities
+backup-database.js
+scripts/backup-database.js
+check-payments.sql
+
+# Local AI/editor history
+.aider*
+
+# Local inspection notes
+admin-css-selectors.txt
+admin-style-inventory.txt
+how new-origin
+
+# Local archive and accidental empty artifact
+capcentral_payment_files.zip
+/git

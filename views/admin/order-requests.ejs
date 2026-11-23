@@ -1,0 +1,599 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Order Requests | CapCentral Admin</title>
+
+    <link rel="stylesheet" href="/css/admin.css">
+
+    <style>
+        .requests-page,
+        .requests-page * {
+            box-sizing: border-box;
+        }
+
+        .requests-page {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            padding: 0;
+            margin: 0;
+            color: #344054;
+        }
+
+        .requests-intro {
+            margin: 0 0 20px;
+            color: #667085;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .request-message {
+            padding: 13px 16px;
+            margin-bottom: 16px;
+            border: 1px solid #b9e5c9;
+            border-radius: 9px;
+            background: #eaf7ef;
+            color: #17633b;
+            font-size: 13px;
+        }
+
+        .request-error {
+            border-color: #f2c3c0;
+            background: #fff0ef;
+            color: #a12620;
+        }
+
+        .requests-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            width: 100%;
+            min-width: 0;
+        }
+
+        .request-card {
+            width: 100%;
+            min-width: 0;
+            overflow: hidden;
+            background: #fff;
+            border: 1px solid #e1e6ed;
+            border-radius: 12px;
+            box-shadow: 0 3px 12px rgba(17, 24, 39, .05);
+        }
+
+        .request-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 14px 18px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e8ecf1;
+        }
+
+        .request-heading {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .request-heading h3 {
+            margin: 0;
+            color: #263449;
+            font-size: 15px;
+            font-weight: 700;
+            overflow-wrap: anywhere;
+        }
+
+        .request-type {
+            color: #667085;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .request-status {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .4px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .status-pending {
+            background: #fff4d6;
+            color: #946200;
+        }
+
+        .status-approved {
+            background: #e4f5eb;
+            color: #187044;
+        }
+
+        .status-rejected {
+            background: #fde8e7;
+            color: #b42318;
+        }
+
+        .request-date {
+            color: #667085;
+            font-size: 11px;
+        }
+
+        .request-card-body {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+            gap: 18px;
+            padding: 18px;
+        }
+
+        .request-panel {
+            min-width: 0;
+        }
+
+        .request-panel-title {
+            margin: 0 0 12px;
+            color: #263449;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .request-info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .request-info {
+            min-width: 0;
+            padding: 10px;
+            border: 1px solid #edf0f4;
+            border-radius: 8px;
+            background: #fff;
+        }
+
+        .request-info-label {
+            display: block;
+            margin-bottom: 5px;
+            color: #667085;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .request-info-value {
+            display: block;
+            color: #263449;
+            font-size: 12px;
+            font-weight: 600;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .request-reason {
+            min-height: 95px;
+            padding: 13px;
+            border: 1px solid #e8ecf1;
+            border-radius: 9px;
+            background: #f8fafc;
+            color: #344054;
+            font-size: 13px;
+            line-height: 1.65;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+
+        .request-review {
+            padding: 15px 18px;
+            border-top: 1px solid #e8ecf1;
+            background: #fbfcfd;
+        }
+
+        .request-review-header {
+            margin: 0 0 10px;
+            color: #263449;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .request-form {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: end;
+            gap: 12px;
+            width: 100%;
+            min-width: 0;
+            margin: 0;
+        }
+
+        .request-form-field {
+            min-width: 0;
+        }
+
+        .request-form label {
+            display: block;
+            margin-bottom: 7px;
+            color: #344054;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .request-form textarea {
+            display: block;
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            min-height: 75px;
+            padding: 10px 12px;
+            border: 1px solid #d5dce5;
+            border-radius: 8px;
+            background: #fff;
+            color: #263449;
+            font-family: inherit;
+            font-size: 12px;
+            line-height: 1.5;
+            resize: vertical;
+        }
+
+        .request-form textarea:focus {
+            outline: none;
+            border-color: #526780;
+            box-shadow: 0 0 0 3px rgba(38, 52, 73, .1);
+        }
+
+        .request-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 105px;
+        }
+
+        .request-actions button {
+            width: 100%;
+            min-height: 38px;
+            padding: 9px 15px;
+            border: 0;
+            border-radius: 7px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: filter .2s ease;
+        }
+
+        .request-actions button:hover {
+            filter: brightness(1.12);
+        }
+
+        .approve-btn {
+            background: #263449;
+        }
+
+        .reject-btn {
+            background: #a83232;
+        }
+
+        .request-response {
+            padding: 11px 13px;
+            border: 1px solid #e1e6ed;
+            border-radius: 8px;
+            background: #fff;
+            color: #344054;
+            font-size: 12px;
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
+        }
+
+        .request-reviewed {
+            margin-top: 9px;
+            color: #667085;
+            font-size: 11px;
+        }
+
+        .empty-requests {
+            padding: 45px 20px;
+            border: 1px dashed #cbd3df;
+            border-radius: 12px;
+            background: #f8fafc;
+            color: #667085;
+            text-align: center;
+        }
+
+        .empty-requests h3 {
+            margin: 0 0 8px;
+            color: #263449;
+            font-size: 16px;
+        }
+
+        .empty-requests p {
+            margin: 0;
+            font-size: 13px;
+        }
+
+        @media (max-width: 900px) {
+            .request-card-body {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 16px;
+            }
+
+            .request-form {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .request-actions {
+                flex-direction: row;
+                min-width: 0;
+            }
+
+            .request-actions button {
+                flex: 1;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .requests-list {
+                gap: 12px;
+            }
+
+            .request-card-header {
+                align-items: flex-start;
+                flex-direction: column;
+                padding: 12px;
+                gap: 8px;
+            }
+
+            .request-card-body {
+                padding: 12px;
+                gap: 14px;
+            }
+
+            .request-info-grid {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 8px;
+            }
+
+            .request-info {
+                padding: 9px;
+            }
+
+            .request-reason {
+                min-height: 70px;
+            }
+
+            .request-review {
+                padding: 12px;
+            }
+
+            .request-actions {
+                flex-direction: column;
+            }
+
+            .request-actions button {
+                width: 100%;
+                min-height: 42px;
+            }
+        }
+    </style>
+</head>
+
+<body class="admin-page">
+
+<%- include('../partials/admin-shell-start', {
+    admin: admin,
+    adminPageTitle: 'Customer Order Requests',
+    adminActivePage: 'order-requests'
+}) %>
+
+<main class="requests-page">
+
+    <p class="requests-intro">
+        Review and manage customer cancellation and refund requests.
+    </p>
+
+    <% if (message) { %>
+        <div class="request-message"><%= message %></div>
+    <% } %>
+
+    <% if (error) { %>
+        <div class="request-message request-error"><%= error %></div>
+    <% } %>
+
+    <% if (requests && requests.length > 0) { %>
+
+        <div class="requests-list">
+
+            <% requests.forEach(request => { %>
+
+                <article class="request-card">
+
+                    <header class="request-card-header">
+
+                        <div class="request-heading">
+                            <h3><%= request.customer_name %></h3>
+
+                            <span class="request-type">
+                                <%= request.request_type === 'refund'
+                                    ? 'Refund Request'
+                                    : 'Cancellation Request' %>
+                            </span>
+
+                            <span class="request-status status-<%= request.request_status %>">
+                                <%= request.request_status %>
+                            </span>
+                        </div>
+
+                        <span class="request-date">
+                            Submitted:
+                            <%= new Date(request.created_at).toLocaleString() %>
+                        </span>
+
+                    </header>
+
+                    <div class="request-card-body">
+
+                        <section class="request-panel">
+
+                            <h4 class="request-panel-title">Customer & Order</h4>
+
+                            <div class="request-info-grid">
+
+                                <div class="request-info">
+                                    <span class="request-info-label">Username</span>
+                                    <span class="request-info-value">
+                                        <%= request.username || 'Account unavailable' %>
+                                    </span>
+                                </div>
+
+                                <div class="request-info">
+                                    <span class="request-info-label">Email</span>
+                                    <span class="request-info-value">
+                                        <%= request.customer_email %>
+                                    </span>
+                                </div>
+
+                                <div class="request-info">
+                                    <span class="request-info-label">Order Reference</span>
+                                    <span class="request-info-value">
+                                        <%= request.order_reference %>
+                                    </span>
+                                </div>
+
+                                <div class="request-info">
+                                    <span class="request-info-label">Order Amount</span>
+                                    <span class="request-info-value">
+                                        <%= request.currency %>
+                                        <%= Number(request.total_amount).toLocaleString() %>
+                                    </span>
+                                </div>
+
+                                <div class="request-info">
+                                    <span class="request-info-label">Order Status</span>
+                                    <span class="request-info-value">
+                                        <%= request.order_status %>
+                                    </span>
+                                </div>
+
+                            </div>
+
+                        </section>
+
+                        <section class="request-panel">
+
+                            <h4 class="request-panel-title">Customer's Reason</h4>
+
+                            <div class="request-reason"><%= request.reason %></div>
+
+                        </section>
+
+                    </div>
+
+                    <section class="request-review">
+
+                        <h4 class="request-review-header">Admin Review</h4>
+
+                        <% if (request.request_status === 'pending') { %>
+
+                            <form
+                                class="request-form"
+                                method="POST"
+                                action="/admin/order-requests/<%= request.id %>/review"
+                            >
+
+                                <input
+                                    type="hidden"
+                                    name="_csrf"
+                                    value="<%= csrfToken %>"
+                                >
+
+                                <div class="request-form-field">
+
+                                    <label for="admin-note-<%= request.id %>">
+                                        Admin Response
+                                    </label>
+
+                                    <textarea
+                                        id="admin-note-<%= request.id %>"
+                                        name="admin_note"
+                                        maxlength="2000"
+                                        placeholder="Enter your response to the customer..."
+                                    ></textarea>
+
+                                </div>
+
+                                <div class="request-actions">
+
+                                    <button
+                                        type="submit"
+                                        name="decision"
+                                        value="approved"
+                                        class="approve-btn"
+                                    >
+                                        Approve
+                                    </button>
+
+                                    <button
+                                        type="submit"
+                                        name="decision"
+                                        value="rejected"
+                                        class="reject-btn"
+                                    >
+                                        Reject
+                                    </button>
+
+                                </div>
+
+                            </form>
+
+                        <% } else { %>
+
+                            <div class="request-response">
+                                <strong>Admin Response:</strong>
+                                <p><%= request.admin_note || 'No response provided.' %></p>
+                            </div>
+
+                            <div class="request-reviewed">
+                                Reviewed:
+                                <%= request.reviewed_at
+                                    ? new Date(request.reviewed_at).toLocaleString()
+                                    : 'Not recorded' %>
+                            </div>
+
+                        <% } %>
+
+                    </section>
+
+                </article>
+
+            <% }); %>
+
+        </div>
+
+    <% } else { %>
+
+        <div class="empty-requests">
+            <h3>No customer requests yet</h3>
+            <p>Cancellation and refund requests will appear here.</p>
+        </div>
+
+    <% } %>
+
+</main>
+
+<%- include('../partials/admin-shell-end') %>
+

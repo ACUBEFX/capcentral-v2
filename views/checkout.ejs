@@ -1,0 +1,856 @@
+﻿
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Checkout | CapCentral</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #eef6ff, #f8fbff);
+            color: #222;
+            padding: 30px 15px;
+        }
+
+        .checkout-container {
+            max-width: 650px;
+            width: 100%;
+            margin: auto;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 15px 45px rgba(0, 0, 0, 0.10);
+        }
+
+        /* HEADER */
+        .header {
+            background: linear-gradient(135deg, #007bff, #0056d6);
+            color: white;
+            text-align: center;
+            padding: 30px 20px;
+        }
+
+        .logo {
+            font-size: 30px;
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+
+        .header p {
+            margin-top: 7px;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        .return-cart-link {
+            display: inline-block;
+            margin-top: 14px;
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            border: 1px solid rgba(255,255,255,0.65);
+            border-radius: 20px;
+            padding: 7px 15px;
+            transition: background 0.2s ease;
+        }
+
+        .return-cart-link:hover {
+            background: rgba(255,255,255,0.18);
+        }
+
+        /* CONTENT */
+        .content {
+            padding: 30px;
+        }
+
+        h2 {
+            color: #222;
+            margin-bottom: 18px;
+            font-size: 21px;
+        }
+
+        /* CART */
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            padding: 16px 0;
+            border-bottom: 1px solid #eeeeee;
+        }
+
+        .item-info {
+            flex: 1;
+        }
+
+        .item-name {
+            font-weight: 700;
+            color: #222;
+            margin-bottom: 5px;
+        }
+
+        .item-details {
+            color: #777;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .item-price {
+            font-weight: 700;
+            color: #007bff;
+            white-space: nowrap;
+        }
+
+        /* DELIVERY */
+        .delivery-section {
+            margin-top: 30px;
+        }
+
+        .delivery-option {
+            display: block;
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .delivery-option input {
+            position: absolute;
+            opacity: 0;
+        }
+
+        .delivery-card {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 17px;
+            border: 2px solid #e3e7ec;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: 0.25s ease;
+        }
+
+        .delivery-card:hover {
+            border-color: #007bff;
+            background: #f8fbff;
+        }
+
+        .delivery-option input:checked + .delivery-card {
+            border-color: #007bff;
+            background: #f0f7ff;
+        }
+
+        .delivery-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: #e8f2ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 21px;
+        }
+
+        .delivery-info {
+            flex: 1;
+        }
+
+        .delivery-title {
+            font-weight: 700;
+            color: #222;
+            margin-bottom: 4px;
+        }
+
+        .delivery-description {
+            color: #777;
+            font-size: 13px;
+        }
+
+        .delivery-price {
+            font-weight: 700;
+            color: #007bff;
+        }
+
+        /* TOTAL */
+        .total-box {
+            margin-top: 20px;
+            padding: 18px;
+            background: #f5f9ff;
+            border-radius: 12px;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .total-row.final {
+            border-top: 1px solid #dce6f2;
+            padding-top: 14px;
+            margin-top: 12px;
+            font-size: 20px;
+            font-weight: 800;
+            color: #222;
+        }
+
+        .total-row.final span:last-child {
+            color: #007bff;
+        }
+
+        .promo-entry {
+            display: flex;
+            gap: 8px;
+            margin: 18px 0 12px;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        .promo-entry input {
+            flex: 1;
+            min-width: 0;
+            padding: 11px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 15px;
+        }
+
+        .promo-entry button {
+            padding: 0 16px;
+            border: 0;
+            border-radius: 8px;
+            background: #075fc5;
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .promo-message {
+            min-height: 20px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .promo-message.success {
+            color: #18723a;
+        }
+
+        .promo-message.error {
+            color: #b42318;
+        }
+
+        /* FORM */
+        .form-section {
+            margin-top: 30px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input[type="email"],
+        textarea {
+            width: 100%;
+            padding: 14px 15px;
+            border: 1.5px solid #d5d9df;
+            border-radius: 9px;
+            font-size: 15px;
+            outline: none;
+            transition: 0.2s ease;
+            font-family: "Segoe UI", Arial, sans-serif;
+        }
+
+        input[type="email"]:focus,
+        textarea:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.10);
+        }
+
+        textarea {
+            min-height: 110px;
+            resize: vertical;
+        }
+
+        .required {
+            color: #d60000;
+        }
+
+        .address-help {
+            margin-top: 6px;
+            color: #888;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        /* BUTTON */
+        .pay-button {
+            width: 100%;
+            margin-top: 25px;
+            padding: 16px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #007bff, #0056d6);
+            color: white;
+            font-size: 17px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.25s ease;
+        }
+
+        .pay-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 123, 255, 0.25);
+        }
+
+        .secure {
+            text-align: center;
+            margin-top: 15px;
+            color: #888;
+            font-size: 12px;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fb;
+            color: #999;
+            font-size: 12px;
+        }
+
+        @media (max-width: 500px) {
+            .content {
+                padding: 22px;
+            }
+
+            .cart-item {
+                align-items: flex-start;
+            }
+
+            .item-price {
+                font-size: 14px;
+            }
+
+            .delivery-card {
+                padding: 14px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="checkout-container">
+
+    <!-- HEADER -->
+    <div class="header">
+        <div class="logo">
+            CapCentral
+        </div>
+
+        <p>
+            Secure Checkout
+        </p>
+        <a href="/products?openCart=1" class="return-cart-link">Return to Cart</a>
+    </div>
+
+
+    <div class="content">
+
+        <!-- CART -->
+        <h2>
+            Your Order
+        </h2>
+
+        <div>
+
+            <% cart.forEach(function(item) { %>
+
+                <div class="cart-item">
+
+                    <div class="item-info">
+
+                        <div class="item-name">
+                            <%= item.name %>
+                        </div>
+
+                        <div class="item-details">
+                            Size:
+                            <%= item.size || "N/A" %>
+
+                            <br>
+
+                            Quantity:
+                            <%= item.quantity %>
+                        </div>
+
+                    </div>
+
+                    <div class="item-price">
+                        ₦<%= (
+                            Number(item.price) *
+                            Number(item.quantity)
+                        ).toLocaleString() %>
+                    </div>
+
+                </div>
+
+            <% }); %>
+
+        </div>
+
+
+        <!-- DELIVERY -->
+        <div class="delivery-section">
+
+            <h2>
+                Choose Delivery
+            </h2>
+
+
+            <!-- STANDARD -->
+            <label class="delivery-option">
+
+                <input
+                    type="radio"
+                    name="deliveryOption"
+                    value="standard"
+                    data-surcharge="0"
+                    checked
+                    form="checkoutForm"
+                >
+
+                <div class="delivery-card">
+
+                    <div class="delivery-icon">
+                        Package
+                    </div>
+
+                    <div class="delivery-info">
+
+                        <div class="delivery-title">
+                            Standard Delivery
+                        </div>
+
+                        <div class="delivery-description">
+                            Delivered within 2-3 business days
+                        </div>
+
+                    </div>
+
+                    <div class="delivery-price">
+                        Free
+                    </div>
+
+                </div>
+
+            </label>
+
+
+            <!-- EXPRESS -->
+            <label class="delivery-option">
+
+                <input
+                    type="radio"
+                    name="deliveryOption"
+                    value="express"
+                    data-surcharge="2000"
+                    form="checkoutForm"
+                >
+
+                <div class="delivery-card">
+
+                    <div class="delivery-icon">
+                        Express
+                    </div>
+
+                    <div class="delivery-info">
+
+                        <div class="delivery-title">
+                            Express Delivery
+                        </div>
+
+                        <div class="delivery-description">
+                            Delivered within 1-2 business days
+                        </div>
+
+                    </div>
+
+                    <div class="delivery-price">
+                        +₦2,000
+                    </div>
+
+                </div>
+
+            </label>
+
+        </div>
+
+
+        <!-- TOTAL -->
+        <div class="total-box">
+
+            <div class="promo-entry">
+                <label for="promoCode" class="sr-only">Promotion code</label>
+                <input
+                    type="text"
+                    id="promoCode"
+                    autocomplete="off"
+                    maxlength="50"
+                    placeholder="Enter promo code"
+                    aria-describedby="promoMessage"
+                >
+                <button type="button" id="applyPromoButton">Apply</button>
+            </div>
+
+            <div id="promoMessage" class="promo-message" role="status" aria-live="polite"></div>
+
+            <div class="total-row">
+
+                <span>
+                    Subtotal
+                </span>
+
+                <span>
+                    ₦<%= Number(total).toLocaleString() %>
+                </span>
+
+            </div>
+
+            <div class="total-row" id="discountRow" hidden>
+                <span>Promotion discount</span>
+                <span id="discountAmount">−₦0</span>
+            </div>
+
+
+            <div class="total-row">
+
+                <span>
+                    Delivery
+                </span>
+
+                <span id="deliveryCost">
+                    Free
+                </span>
+
+            </div>
+
+
+            <div class="total-row final">
+
+                <span>
+                    Total
+                </span>
+
+                <span id="finalTotal">
+                    ₦<%= Number(total).toLocaleString() %>
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <!-- PAYMENT FORM -->
+        <form
+            id="checkoutForm"
+            action="/checkout/pay"
+            method="POST"
+        >
+
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+            <input
+                type="hidden"
+                name="total"
+                id="totalInput"
+                value="<%= total %>"
+            >
+
+            <input
+                type="hidden"
+                name="cart"
+                value='<%- JSON.stringify(cart) %>'
+            >
+
+            <input
+                type="hidden"
+                name="deliveryOption"
+                id="deliveryOptionInput"
+                value="standard"
+            >
+
+            <input
+                type="hidden"
+                name="expressSurcharge"
+                id="expressSurchargeInput"
+                value="0"
+            >
+
+            <input type="hidden" name="promoCode" id="appliedPromoCode" value="">
+
+            <input
+                type="hidden"
+                name="returnUrl"
+                value="<%= returnUrl || '/products' %>"
+            >
+
+
+            
+<!-- EMAIL -->
+<div class="form-section">
+    <label for="email">Email Address</label>
+
+    <input
+        type="email"
+        id="email"
+        name="email"
+        value="<%= customer?.email || '' %>"
+        required
+        placeholder="Enter your email address"
+    >
+</div>
+
+
+
+            
+<!-- DELIVERY ADDRESS -->
+<div class="form-section">
+    <label for="deliveryAddress">
+        Delivery Address
+        <span class="required">*</span>
+    </label>
+
+    <textarea
+        id="deliveryAddress"
+        name="deliveryAddress"
+        required
+        placeholder="Enter the full address where you want your order delivered"
+    ><%= customer?.address || '' %></textarea>
+
+    <div class="address-help">
+        Please include your house/building number,
+        street, area, city, and any useful landmark.
+    </div>
+</div>
+
+
+
+            <!-- PAY BUTTON -->
+            <button
+                type="submit"
+                class="pay-button"
+            >
+                Pay Securely Pay Securely
+            </button>
+
+            <div class="secure">
+                Payments are securely processed by Paystack.
+            </div>
+
+        </form>
+
+    </div>
+
+
+    <div class="footer">
+        &copy; 2026 CapCentral | Thank you for shopping with us.
+    </div>
+
+</div>
+
+
+<script src="/csrf-client.js"></script>
+<script>
+
+    const baseTotal =
+        Number("<%= total %>");
+
+    let appliedDiscount = 0;
+
+
+    const deliveryOptions =
+        document.querySelectorAll(
+            'input[name="deliveryOption"]'
+        );
+
+
+    const deliveryCost =
+        document.getElementById(
+            "deliveryCost"
+        );
+
+
+    const finalTotal =
+        document.getElementById(
+            "finalTotal"
+        );
+
+
+    const totalInput =
+        document.getElementById(
+            "totalInput"
+        );
+
+
+    const deliveryOptionInput =
+        document.getElementById(
+            "deliveryOptionInput"
+        );
+
+
+    const expressSurchargeInput =
+        document.getElementById(
+            "expressSurchargeInput"
+        );
+
+    const promoCodeInput = document.getElementById("promoCode");
+    const appliedPromoCode = document.getElementById("appliedPromoCode");
+    const applyPromoButton = document.getElementById("applyPromoButton");
+    const promoMessage = document.getElementById("promoMessage");
+    const discountRow = document.getElementById("discountRow");
+    const discountAmount = document.getElementById("discountAmount");
+
+    function refreshCheckoutTotal() {
+        const surcharge = Number(expressSurchargeInput.value) || 0;
+        const payableTotal = baseTotal - appliedDiscount + surcharge;
+
+        totalInput.value = payableTotal.toFixed(2);
+        finalTotal.textContent = "₦" + payableTotal.toLocaleString();
+    }
+
+    promoCodeInput.addEventListener("input", function () {
+        appliedDiscount = 0;
+        appliedPromoCode.value = "";
+        discountRow.hidden = true;
+        promoMessage.textContent = "";
+        promoMessage.className = "promo-message";
+        refreshCheckoutTotal();
+    });
+
+    applyPromoButton.addEventListener("click", async function () {
+        const code = promoCodeInput.value.trim();
+
+        if (!code) {
+            promoMessage.textContent = "Enter a promotion code.";
+            promoMessage.className = "promo-message error";
+            return;
+        }
+
+        applyPromoButton.disabled = true;
+        promoMessage.textContent = "Checking code…";
+        promoMessage.className = "promo-message";
+
+        try {
+            const formData = new URLSearchParams(
+                new FormData(document.getElementById("checkoutForm"))
+            );
+            formData.set("promoCode", code);
+
+            const response = await window.capCentralCsrfFetch("/checkout/promo", {
+                method: "POST",
+                headers: { "Accept": "application/json" },
+                body: formData
+            }, { retryOnCsrf: true, idempotent: true });
+            const result = await response.json();
+
+            if (!response.ok || !result.valid) {
+                throw new Error(result.message || "This promotion code could not be applied.");
+            }
+
+            appliedDiscount = result.discountAmount;
+            appliedPromoCode.value = result.code;
+            discountAmount.textContent = "−₦" + appliedDiscount.toLocaleString();
+            discountRow.hidden = false;
+            promoMessage.textContent = "Promotion applied.";
+            promoMessage.className = "promo-message success";
+            refreshCheckoutTotal();
+        } catch (error) {
+            appliedDiscount = 0;
+            appliedPromoCode.value = "";
+            discountRow.hidden = true;
+            refreshCheckoutTotal();
+            promoMessage.textContent = error.message || "Unable to check this promotion code.";
+            promoMessage.className = "promo-message error";
+        } finally {
+            applyPromoButton.disabled = false;
+        }
+    });
+
+
+    deliveryOptions.forEach(
+        option => {
+
+            option.addEventListener(
+                "change",
+                function () {
+
+                    const deliveryType =
+                        this.value;
+
+
+                    const surcharge =
+                        Number(
+                            this.dataset.surcharge
+                        ) || 0;
+
+
+                    deliveryOptionInput.value =
+                        deliveryType;
+
+
+                    expressSurchargeInput.value =
+                        surcharge;
+
+
+                    if (surcharge > 0) {
+
+                        deliveryCost.textContent =
+                            "₦" +
+                            surcharge.toLocaleString();
+
+                    } else {
+
+                        deliveryCost.textContent =
+                            "Free";
+
+                    }
+
+
+                    refreshCheckoutTotal();
+
+                }
+            );
+
+        }
+    );
+
+</script>
+
+</body>
+</html>
+
+
+
