@@ -1,17 +1,20 @@
-﻿const express = require('express');
+const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 
 
 const session = require('express-session');
+const MySQLStore = require('express-mysql-session')(session);
 const path = require('path');
 require('dotenv').config();
+const db = require('./models/database');
 const { createSessionSecurity } = require('./config/sessionSecurity');
 const {
   csrfSynchronisedProtection,
   generateToken
 } = require('./middlewares/csrfProtection');
 const reservationExpiryService = require('./services/reservationExpiryService');
+const { startServer } = require('./services/startServer');
 const flash = require('connect-flash');
 
 const authRoutes = require('./routes/authroutes');
@@ -31,9 +34,25 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const sessionSecurity = createSessionSecurity(process.env);
 
+// Use persistent sessions only when explicitly enabled.
+// The sessions table must exist before setting SESSION_STORE=mysql.
+const sessionStore = process.env.SESSION_STORE === 'mysql'
+    ? new MySQLStore({
+        createDatabaseTable: true,
+        clearExpired: false,
+        expiration: 24 * 60 * 60 * 1000,
+        endConnectionOnClose: false
+    }, db.promise())
+    : undefined;
+
 // Railway forwards one trusted proxy hop and sets X-Forwarded-Proto.
 // Keep proxy trust disabled in local development and other environments.
 app.set('trust proxy', sessionSecurity.trustProxy);
+
+// Render health check: confirms the application process is responding.
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
 
 // Set view engine
 app.set('view engine', 'ejs');
@@ -41,8 +60,8 @@ app.set('views', path.join(__dirname, 'views'));
 
 // Middleware
 
-app.use(flash());
 app.use(session({
+  ...(sessionStore ? { store: sessionStore } : {}),
   secret: sessionSecurity.secret,
   resave: false,
   saveUninitialized: false,
@@ -53,6 +72,9 @@ app.use(session({
     secure: sessionSecurity.secureCookie
   }
 }));
+
+// Flash messages require an initialized session.
+app.use(flash());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: true }));
@@ -127,8 +149,13 @@ app.use((err, req, res, next) => {
     // Handle other errors
     return res.status(500).send('Something went wrong!');
 });
-// Server start
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running at http://localhost:${PORT}`);
-  reservationExpiryService.start();
+// Start the application after optional persistent session initialization.
+startServer({
+  app,
+  port: PORT,
+  sessionStore,
+  reservationExpiryService
+}).catch((error) => {
+  console.error('Application startup failed:', error);
+  process.exitCode = 1;
 });

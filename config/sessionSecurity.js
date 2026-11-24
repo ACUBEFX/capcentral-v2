@@ -5,7 +5,8 @@ const MIN_DISTINCT_SECRET_CHARACTERS = 16;
 
 function createSessionSecurity(env = process.env) {
     const isRailway = Boolean(env.RAILWAY_ENVIRONMENT_NAME);
-    const isProduction = env.NODE_ENV === 'production' || isRailway;
+    const isRender = Boolean(env.RENDER) || Boolean(env.RENDER_SERVICE_ID);
+    const isProduction = env.NODE_ENV === 'production' || isRailway || isRender;
     const secret = env.SESSION_SECRET;
 
     if (isProduction) {
@@ -24,7 +25,7 @@ function createSessionSecurity(env = process.env) {
     return {
         secret,
         secureCookie: isProduction,
-        trustProxy: isRailway ? 1 : false
+        trustProxy: (isRailway || isRender) ? 1 : false
     };
 }
 

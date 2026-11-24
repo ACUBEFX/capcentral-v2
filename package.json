@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test test/startServer.test.js test/sessionSecurity.test.js test/csrfProtection.test.js test/frontendReliability.test.js test/paymentInitializationRecovery.test.js test/paymentWorkflowReliability.test.js",
     "start": "node app.js",
     "dev": "nodemon app.js"
   },
@@ -21,6 +21,7 @@
     "dotenv": "^16.5.0",
     "ejs": "^3.1.10",
     "express": "^5.1.0",
+    "express-mysql-session": "3.0.3",
     "express-router": "^0.0.1",
     "express-session": "^1.18.1",
     "google-auth-library": "^11.3.4",
