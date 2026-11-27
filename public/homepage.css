@@ -631,10 +631,13 @@ body > hr {
 
 /* Mobile sidebar */
 
+
 @media (max-width: 768px) {
   body {
     padding-left: 0;
+    padding-top: 130px;
   }
+
 
   .homepage-header {
     padding: 0 15px;
