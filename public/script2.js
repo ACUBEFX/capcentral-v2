@@ -86,6 +86,8 @@ document.addEventListener('DOMContentLoaded', () => {
  /////// Email Functionality ///////////////////
 
 const modal = document.getElementById('emailModal');
+const emailForm = document.getElementById('emailForm');
+const openContactForm = document.getElementById('openContactForm');
 const emailUsLinks = document.querySelectorAll('#emailUsLink');
 const closeBtn = document.querySelector('.close');
 
@@ -94,14 +96,33 @@ emailUsLinks.forEach(link => {
     event.preventDefault();
 
     if (modal) {
-      modal.style.display = 'block';
-    }
+  modal.style.display = 'block';
+
+  if (emailForm) {
+    emailForm.hidden = true;
+  }
+
+  const contactOptions = modal.querySelector('.contact-options');
+
+  if (contactOptions) {
+    contactOptions.hidden = false;
+  }
+}
   });
 });
+
+
 
 if (closeBtn && modal) {
   closeBtn.addEventListener('click', () => {
     modal.style.display = 'none';
+    emailForm.hidden = true;
+
+    const contactOptions = modal.querySelector('.contact-options');
+
+    if (contactOptions) {
+      contactOptions.hidden = false;
+    }
   });
 }
 
