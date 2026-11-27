@@ -16,28 +16,36 @@
 
 <body>
 
-  <header>
-    <nav>
-      <a href="homepage.html" class="logo"><img src="jpg/logo.jpeg" alt="Logo"> </a>
-     <h1 id="brandname">Cap Central</h1>
+<header class="homepage-header">
+  <a href="/" class="homepage-logo">
+    <img src="/images/logo.png" alt="CapCentral Logo"
+         onerror="this.style.display='none'">
+    <span>CapCentral</span>
+  </a>
 
-      
-      <!-- Burger Icon -->
-      <div class="burger" id="burger">
-        <span class="burger-line"></span>
-        <span class="burger-line"></span>
-        <span class="burger-line"></span>
-      </div>
-      
-      <ul class="nav-links" id="nav-links">
-        <li><a href="homepage.html">Home</a></li>
-        <li><a href="/products">Products</a></li>
-        <li><a href="/services">Services</a></li>
-        <li><a href="#" id="emailUsLink">Contact</a></li>
-        <li><a href="/login">Sign In</a></li>
-      </ul>
-    </nav>
-  </header>
+  <a href="/login" class="homepage-signin">Sign In</a>
+</header>
+
+<nav class="homepage-sidebar">
+  <button type="button"
+          class="burger"
+          id="burger"
+          aria-label="Toggle navigation"
+          aria-expanded="false"
+          aria-controls="nav-links">
+    <span class="burger-line"></span>
+    <span class="burger-line"></span>
+    <span class="burger-line"></span>
+  </button>
+
+  <ul class="nav-links" id="nav-links">
+    <li><a href="/">Home</a></li>
+    <li><a href="/products">Products</a></li>
+    <li><a href="/services">Services</a></li>
+    <li><a href="#" id="emailUsLink">Contact</a></li>
+  </ul>
+</nav>
+
 
   <br>
 
