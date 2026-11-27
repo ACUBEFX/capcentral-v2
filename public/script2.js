@@ -1,24 +1,21 @@
-
 const burger = document.getElementById('burger');
 const navLinks = document.getElementById('nav-links');
+const homepageSidebar = document.getElementById('homepageSidebar');
 
-if (burger && navLinks) {
+if (burger && navLinks && homepageSidebar) {
   burger.addEventListener('click', () => {
-    const isOpen = navLinks.classList.toggle('nav-active');
+    const isOpen = homepageSidebar.classList.toggle('sidebar-open');
 
-    burger.classList.toggle('toggle', isOpen);
     burger.setAttribute('aria-expanded', String(isOpen));
   });
 
   navLinks.querySelectorAll('a').forEach(link => {
     link.addEventListener('click', () => {
-      navLinks.classList.remove('nav-active');
-      burger.classList.remove('toggle');
+      homepageSidebar.classList.remove('sidebar-open');
       burger.setAttribute('aria-expanded', 'false');
     });
   });
 }
-
   
     const linkElement = document.createElement('link');
     linkElement.rel = 'stylesheet';
