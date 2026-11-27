@@ -269,11 +269,44 @@
 
 
 <!-- Email Modal -->
+<!-- Contact Modal -->
 <div id="emailModal" class="modal">
-  <div class="modal-content">
+  <div class="modal-content contact-card">
     <span class="close">&times;</span>
-    <h2>Contact Us</h2>
-    <form id="emailForm" method="post" action="/contact">
+
+    <h2>Contact CapCentral</h2>
+    <p>How would you like to reach us?</p>
+
+    <div class="contact-options">
+      <a href="mailto:capcentraldesk@gmail.com" class="contact-option">
+        <i class="fas fa-envelope"></i>
+        <span>Email Us</span>
+        <small>capcentraldesk@gmail.com</small>
+      </a>
+
+      <a href="tel:+2348166785951" class="contact-option">
+        <i class="fas fa-phone"></i>
+        <span>Call Us</span>
+        <small>08166785951</small>
+      </a>
+
+      <a href="https://wa.me/2348166785951"
+         target="_blank"
+         rel="noopener noreferrer"
+         class="contact-option">
+        <i class="fab fa-whatsapp"></i>
+        <span>WhatsApp</span>
+        <small>Chat with our team</small>
+      </a>
+
+      <button type="button" id="openContactForm" class="contact-option">
+        <i class="fas fa-message"></i>
+        <span>Contact Form</span>
+        <small>Send us a message</small>
+      </button>
+    </div>
+
+    <form id="emailForm" method="post" action="/contact" hidden>
       <label for="userName">Your Name</label>
       <input type="text" id="userName" name="userName" required>
 
@@ -286,7 +319,7 @@
       <label for="message">Message</label>
       <textarea id="message" name="message" rows="4" required></textarea>
 
-      <button type="submit" id="ebutton" >Send</button>
+      <button type="submit" id="ebutton">Send</button>
     </form>
   </div>
 </div>
