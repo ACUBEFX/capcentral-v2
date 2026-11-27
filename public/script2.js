@@ -112,6 +112,14 @@ window.addEventListener('click', event => {
 });
 
 const emailForm = document.getElementById('emailForm');
+const openContactForm = document.getElementById('openContactForm');
+
+if (openContactForm && emailForm) {
+  openContactForm.addEventListener('click', () => {
+    emailForm.hidden = false;
+    openContactForm.closest('.contact-options').hidden = true;
+  });
+}
 
 if (emailForm && modal) {
   emailForm.addEventListener('submit', () => {
