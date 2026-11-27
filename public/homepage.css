@@ -696,3 +696,65 @@ body > hr {
   }
    }
    
+/* Homepage Contact Card */
+
+.contact-card {
+  max-width: 450px;
+  width: 90%;
+  border-radius: 14px;
+  padding: 25px;
+}
+
+.contact-card h2 {
+  margin-bottom: 8px;
+}
+
+.contact-card > p {
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.contact-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.contact-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  width: 100%;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 9px;
+  background: #fff;
+  color: #222;
+  text-decoration: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.contact-option:hover {
+  background: #f3f3f3;
+  border-color: #999;
+}
+
+.contact-option i {
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+.contact-option span {
+  font-weight: 700;
+}
+
+.contact-option small {
+  color: #666;
+}
+
+.contact-card #emailForm[hidden] {
+  display: none;
+ }
