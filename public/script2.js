@@ -116,7 +116,9 @@ emailUsLinks.forEach(link => {
 if (closeBtn && modal) {
   closeBtn.addEventListener('click', () => {
     modal.style.display = 'none';
-    emailForm.hidden = true;
+    if (emailForm) {
+  emailForm.hidden = true;
+}
 
     const contactOptions = modal.querySelector('.contact-options');
 
@@ -129,11 +131,19 @@ if (closeBtn && modal) {
 window.addEventListener('click', event => {
   if (modal && event.target === modal) {
     modal.style.display = 'none';
+
+    if (emailForm) {
+      emailForm.hidden = true;
+    }
+
+    const contactOptions = modal.querySelector('.contact-options');
+
+    if (contactOptions) {
+      contactOptions.hidden = false;
+    }
   }
 });
 
-const emailForm = document.getElementById('emailForm');
-const openContactForm = document.getElementById('openContactForm');
 
 if (openContactForm && emailForm) {
   openContactForm.addEventListener('click', () => {
