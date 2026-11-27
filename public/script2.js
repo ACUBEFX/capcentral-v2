@@ -1,17 +1,24 @@
+
 const burger = document.getElementById('burger');
-    const navLinks = document.getElementById('nav-links');
-    
-    burger.addEventListener('click', () => {
-      navLinks.classList.toggle('nav-active');
-      burger.classList.toggle('toggle');
+const navLinks = document.getElementById('nav-links');
+
+if (burger && navLinks) {
+  burger.addEventListener('click', () => {
+    const isOpen = navLinks.classList.toggle('nav-active');
+
+    burger.classList.toggle('toggle', isOpen);
+    burger.setAttribute('aria-expanded', String(isOpen));
+  });
+
+  navLinks.querySelectorAll('a').forEach(link => {
+    link.addEventListener('click', () => {
+      navLinks.classList.remove('nav-active');
+      burger.classList.remove('toggle');
+      burger.setAttribute('aria-expanded', 'false');
     });
-  
-    document.querySelectorAll('.nav-links a').forEach(link => {
-      link.addEventListener('click', () => {
-        navLinks.classList.remove('nav-active');
-        burger.classList.remove('toggle');
-      });
-    });
+  });
+}
+
   
     const linkElement = document.createElement('link');
     linkElement.rel = 'stylesheet';
@@ -56,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
   ];
 
   const hero2Images = [
-    "url('jpg/atiku/atiku1.JPG",//atiku
+    "url('jpg/atiku/atiku1.JPG')",//atiku
     "url('jpg/shoes/shoe4.jpg')",//shoe
     "url('jpg/miyaram/miyaram1.JPG')",//miyaram
     "url('jpg/cap5.jpeg')" 
@@ -77,45 +84,86 @@ document.addEventListener('DOMContentLoaded', () => {
 
  ///////////////////////////////////////////////////
  /////// Email Functionality ///////////////////
+
 const modal = document.getElementById('emailModal');
-const emailUsLink = document.getElementById('emailUsLink');
-const closeBtn = document.getElementsByClassName('close')[0];
+const emailForm = document.getElementById('emailForm');
+const openContactForm = document.getElementById('openContactForm');
+const emailUsLinks = document.querySelectorAll('#emailUsLink');
+const closeBtn = document.querySelector('.close');
 
-// Open modal when "Email us" is clicked
-if (emailUsLink) {
-  emailUsLink.addEventListener('click', function(event) {
+emailUsLinks.forEach(link => {
+  link.addEventListener('click', function(event) {
     event.preventDefault();
-    modal.style.display = 'block';
+
+    if (modal) {
+  modal.style.display = 'block';
+
+  if (emailForm) {
+    emailForm.hidden = true;
+  }
+
+  const contactOptions = modal.querySelector('.contact-options');
+
+  if (contactOptions) {
+    contactOptions.hidden = false;
+  }
+}
+  });
+});
+
+
+
+if (closeBtn && modal) {
+  closeBtn.addEventListener('click', () => {
+    modal.style.display = 'none';
+    if (emailForm) {
+  emailForm.hidden = true;
+}
+
+    const contactOptions = modal.querySelector('.contact-options');
+
+    if (contactOptions) {
+      contactOptions.hidden = false;
+    }
   });
 }
 
-// Close modal when the close (×) is clicked
-if (closeBtn) {
-  closeBtn.addEventListener('click', function() {
+window.addEventListener('click', event => {
+  if (modal && event.target === modal) {
     modal.style.display = 'none';
-  });
-}
 
-// Close modal when clicking outside the modal content
-window.addEventListener('click', function(event) {
-  if (event.target === modal) {
-    modal.style.display = 'none';
+    if (emailForm) {
+      emailForm.hidden = true;
+    }
+
+    const contactOptions = modal.querySelector('.contact-options');
+
+    if (contactOptions) {
+      contactOptions.hidden = false;
+    }
   }
 });
 
-// Optional: Hide modal when form is submitted (form will still submit to /contact)
-const emailForm = document.getElementById('emailForm');
-if (emailForm) {
-  emailForm.addEventListener('submit', function() {
-    modal.style.display = 'none'; // Just visually hides it; form still submits
+
+if (openContactForm && emailForm) {
+  openContactForm.addEventListener('click', () => {
+    emailForm.hidden = false;
+    openContactForm.closest('.contact-options').hidden = true;
   });
 }
 
-// Show alert if message=success is in the URL query params
+if (emailForm && modal) {
+  emailForm.addEventListener('submit', () => {
+    modal.style.display = 'none';
+  });
+}
+
 const params = new URLSearchParams(window.location.search);
+
 if (params.get('message') === 'success') {
   alert('Message sent successfully!');
-}
+      }
+
 
   
     const addressLinkElement = document.getElementById('addressLink');

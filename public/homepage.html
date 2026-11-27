@@ -16,28 +16,35 @@
 
 <body>
 
-  <header>
-    <nav>
-      <a href="homepage.html" class="logo"><img src="jpg/logo.jpeg" alt="Logo"> </a>
-     <h1 id="brandname">Cap Central</h1>
+<header class="homepage-header">
+  <a href="/" class="homepage-logo">
+    <img src="jpg/logo.jpeg" alt="CapCentral Logo">
+    <span>CapCentral</span>
+  </a>
 
-      
-      <!-- Burger Icon -->
-      <div class="burger" id="burger">
-        <span class="burger-line"></span>
-        <span class="burger-line"></span>
-        <span class="burger-line"></span>
-      </div>
-      
-      <ul class="nav-links" id="nav-links">
-        <li><a href="homepage.html">Home</a></li>
-        <li><a href="/products">Products</a></li>
-        <li><a href="/services">Services</a></li>
-        <li><a href="#" id="emailUsLink">Contact</a></li>
-        <li><a href="/login">Sign In</a></li>
-      </ul>
-    </nav>
-  </header>
+  <a href="/login" class="homepage-signin">Sign In</a>
+</header>
+
+<nav class="homepage-sidebar">
+  <button type="button"
+          class="burger"
+          id="burger"
+          aria-label="Toggle navigation"
+          aria-expanded="false"
+          aria-controls="nav-links">
+    <span class="burger-line"></span>
+    <span class="burger-line"></span>
+    <span class="burger-line"></span>
+  </button>
+
+  <ul class="nav-links" id="nav-links">
+    <li><a href="/">Home</a></li>
+    <li><a href="/products">Products</a></li>
+    <li><a href="/services">Services</a></li>
+    <li><a href="#" id="emailUsLink">Contact</a></li>
+  </ul>
+</nav>
+
 
   <br>
 
@@ -187,63 +194,119 @@
   </main>
   <hr>
   
-  <footer class="footer">
-    <div class="footer-container">
-      <div class="footer-brand">
-        <a href="homepage.html" class="logo">
-          <img src="jpg/logo.jpeg" alt="Blackhat Logo" width="120">
-        </a>
+  
+<footer class="footer">
+  <div class="footer-container">
+    <div class="footer-brand">
+      <a href="/" class="logo">
+        <img src="jpg/logo.jpeg" alt="CapCentral Logo" width="120">
+      </a>
+      <p>Quality caps, shoes and traditional fashion.</p>
+    </div>
 
+    <div class="footer-links">
+      <div class="links-column">
+        <h3>Products</h3>
+        <ul>
+          <li><a href="/products">Caps</a></li>
+          <li><a href="/throbe">Throbes</a></li>
+          <li><a href="/trucker">Trucker Hats</a></li>
+          <li><a href="/shoes">Shoes</a></li>
+        </ul>
       </div>
-  
-      <div class="footer-links">
-        <div class="links-column">
-          <h3>Products</h3>
-          <ul>
-            <li><a href="/caps">Caps</a></li>
-            <li><a href="throbe.html">Throbes</a></li>
-            <li><a href="trucker.html">Trucker Hats</a></li>
-            <li><a href="shoe.html">Shoes</a></li>
-          </ul>
-        </div>
-        
-        <div class="links-column">
-          <h3>Company</h3>
-          <ul>
-            <li><a href="index.html">Home</a></li>
-            <li><a href="profile.html">Account</a></li>
-            <li><a href="services.html">Services</a></li>
-          </ul>
-        </div>
-        
-        <div class="links-column">
-          <h3>Support</h3>
-          <ul>
-            
-            <li><a href="tel:08166785951">08166785951</a></li>
-            <li><a href="https://maps.google.com?q=Ibrahim+Dabo+Road,+Kano,+Nigeria">Ibrahim Dabo Road</a></li>
-            <li><a href="#" id="emailUsLink">Email Us</a></li>
-          </ul>
-        </div>
+
+      <div class="links-column">
+        <h3>Company</h3>
+        <ul>
+          <li><a href="/">Home</a></li>
+          <li><a href="/profile">Account</a></li>
+          <li><a href="/services">Services</a></li>
+        </ul>
+      </div>
+
+      <div class="links-column">
+        <h3>Support</h3>
+        <ul>
+          <li><a href="tel:+2348166785951">08166785951</a></li>
+          <li>
+            <a href="https://maps.google.com?q=Ibrahim+Dabo+Road,+Kano,+Nigeria"
+               target="_blank" rel="noopener noreferrer">
+              Ibrahim Dabo Road
+            </a>
+          </li>
+          
+          <li><a href="mailto:capcentraldesk@gmail.com">Email Us</a></li>
+        </ul>
       </div>
     </div>
-  
-    <div class="footer-bottom">
-      <div class="social-links">
-        <a href="https://wa.me/08166785951" target="_blank"><i class="fab fa-whatsapp"></i></a>
-        <a href="https://twitter.com" target="_blank"><i class="fab fa-twitter"></i></a>
-        <a href="https://instagram.com" target="_blank"><i class="fab fa-instagram"></i></a>
-      </div>
-      <p class="copyright">&copy; 2023 Blackhat Caps. All rights reserved.</p>
+  </div>
+
+  <div class="footer-bottom">
+    <div class="social-links">
+      <a href="https://wa.me/2348166785951"
+         target="_blank" rel="noopener noreferrer"
+         aria-label="WhatsApp">
+        <i class="fab fa-whatsapp"></i>
+      </a>
+      <a href="https://twitter.com"
+         target="_blank" rel="noopener noreferrer"
+         aria-label="Twitter">
+        <i class="fab fa-twitter"></i>
+      </a>
+      <a href="https://instagram.com"
+         target="_blank" rel="noopener noreferrer"
+         aria-label="Instagram">
+        <i class="fab fa-instagram"></i>
+      </a>
     </div>
-  </footer>
+
+    <p class="copyright">
+      &copy; 
+2026 CapCentral. All rights reserved.
+    </p>
+  </div>
+</footer>
+
 
 <!-- Email Modal -->
+<!-- Contact Modal -->
 <div id="emailModal" class="modal">
-  <div class="modal-content">
+  <div class="modal-content contact-card">
     <span class="close">&times;</span>
-    <h2>Contact Us</h2>
-    <form id="emailForm" method="post" action="/contact">
+
+    <h2>Contact CapCentral</h2>
+    <p>How would you like to reach us?</p>
+
+    <div class="contact-options">
+      <a href="mailto:capcentraldesk@gmail.com" class="contact-option">
+        <i class="fas fa-envelope"></i>
+        <span>Email Us</span>
+        <small>capcentraldesk@gmail.com</small>
+      </a>
+
+      <a href="tel:+2348166785951" class="contact-option">
+        <i class="fas fa-phone"></i>
+        <span>Call Us</span>
+        <small>08166785951</small>
+      </a>
+
+      <a href="https://wa.me/2348166785951"
+         target="_blank"
+         rel="noopener noreferrer"
+         class="contact-option">
+        <i class="fab fa-whatsapp"></i>
+        <span>WhatsApp</span>
+        <small>Chat with our team</small>
+      </a>
+
+      <button type="button" id="openContactForm" class="contact-option">
+        <i class="fas fa-message"></i>
+        <span>Contact Form</span>
+        <small>Send us a message</small>
+      </button>
+    </div>
+
+    <form id="emailForm" method="post" action="/contact" hidden>
       <label for="userName">Your Name</label>
       <input type="text" id="userName" name="userName" required>
 
@@ -256,7 +319,7 @@
       <label for="message">Message</label>
       <textarea id="message" name="message" rows="4" required></textarea>
 
-      <button type="submit" id="ebutton" >Send</button>
+      <button type="submit" id="ebutton">Send</button>
     </form>
   </div>
 </div>
