@@ -3,7 +3,7 @@
 
     const initCustomerBottomNav = () => {
         const path = window.location.pathname.replace(/\/$/, '') || '/';
-        if (path === '/profile') return;
+        if (path === '/' || path === '/homepage.html' || path === '/profile') return;
         if (!document.querySelector('link[data-cc-bottom-nav-css]')) {
             const stylesheet = document.createElement('link');
             stylesheet.rel = 'stylesheet';
