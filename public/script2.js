@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
   ];
 
   const hero2Images = [
-    "url('jpg/atiku/atiku1.JPG",//atiku
+    "url('jpg/atiku/atiku1.JPG')",//atiku
     "url('jpg/shoes/shoe4.jpg')",//shoe
     "url('jpg/miyaram/miyaram1.JPG')",//miyaram
     "url('jpg/cap5.jpeg')" 
